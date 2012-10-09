@@ -29,10 +29,10 @@ Known Issues
 Required Repositories
 ================
 
-sc_swallow_communication (https://github.com/stevekerrison/sc_swallow_communication)
-sw_swallow_xlinkboot (https://github.com/stevekerrison/sc_swallow_xlinkboot)
-sc_ethernet (https://github.com/xcore/sc_ethernet)
-sc_xtcp (https://github.com/xcore/sc_xtcp)
+* sc_swallow_communication (https://github.com/stevekerrison/sc_swallow_communication)
+* sw_swallow_xlinkboot (https://github.com/stevekerrison/sc_swallow_xlinkboot)
+* sc_ethernet (https://github.com/xcore/sc_ethernet)
+* sc_xtcp (https://github.com/xcore/sc_xtcp)
 
 Support
 =======
