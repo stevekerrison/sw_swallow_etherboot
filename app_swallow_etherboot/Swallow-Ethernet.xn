@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Network xmlns="http://www.xmos.com"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
+  <Type>Board</Type>
+  <Name>Swallow 256Mbit SDRAM Board</Name>
+  
+    <Declarations>
+    <Declaration>core stdcore[1]</Declaration>
+  </Declarations>
+
+  <Packages>
+    <Package id="0" Type="XS1-L1A-TQ128">
+      <Nodes>
+        <Node Id="0" InPackageId="0" Type="XS1-L1A" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="600MHz">
+        
+          <Boot>
+            <Source Location="SPI:bootFlash"/>
+          </Boot>
+          
+          <Core Number="0" Reference="stdcore[0]">
+           <!--<Port Location="XS1_PORT_1L" Name="L1_LED"/>--> <!--  "L1_LED on board -->
+
+            <Port Location="XS1_PORT_1A" Name="SPI_SO"/> <!--  SPI flash lines -->
+            <Port Location="XS1_PORT_1B" Name="SPI_SS"/>
+            <Port Location="XS1_PORT_1C" Name="SPI_CLK"/>
+            <Port Location="XS1_PORT_1D" Name="SPI_SI"/>
+            
+            <Port Location="XS1_PORT_1I" Name="I2C_SDA"/> <!-- I2C data line -->
+            <Port Location="XS1_PORT_1J" Name="I2C_SCK"/> <!-- I2C clock line -->
+            
+            <Port Location="XS1_PORT_1G" Name="PORT_ETH_RXCLK" />
+            <!--<Port Location="XS1_PORT_1H" Name="PORT_ETH_RXER" /> Shared port -->
+            <Port Location="XS1_PORT_1K" Name="PORT_ETH_RXDV" />
+            <Port Location="XS1_PORT_4C" Name="PORT_ETH_RXD" />
+            <Port Location="XS1_PORT_1F" Name="PORT_ETH_TXCLK" />
+            <Port Location="XS1_PORT_1L" Name="PORT_ETH_TXEN" />
+            <Port Location="XS1_PORT_4D" Name="PORT_ETH_TXD" />
+            <Port Location="XS1_PORT_1J" Name="PORT_ETH_MDC" />
+            <Port Location="XS1_PORT_1I" Name="PORT_ETH_MDIO" />
+            <!-- <Port Location="XS1_PORT_1B" Name="PORT_ETH_RST_N" /> Shared port -->
+            <!-- <Port Location="XS1_PORT_8B" Name="PORT_ETH_FAKE" /> Shared port -->
+            
+         </Core>
+        </Node>
+      </Nodes>
+    </Package>
+  </Packages>
+            
+  <Links>
+    <!-- XSCOPE -->
+	<Link Encoding="2wire" Delays="4,4" Flags="SOD">
+	  <LinkEndpoint NodeId="0" Link="XLD"/>
+	  <LinkEndpoint RoutingId="0x8000" Chanend="1"/>
+	</Link>
+  </Links>
+            
+  <ExternalDevices>
+    <Device NodeId="0" Core="0" Class="SPIFlash" Name="bootFlash" Type="FL064K1F"> <!-- is AT25FS010 compatible -->
+     <!--  <Device NodeId="0" Core="0" Class="SPIFlash" Name="bootFlash" Type="AT25FS010"> -->
+      <Attribute Name="PORT_SPI_MISO" Value="SPI_SO"/>
+      <Attribute Name="PORT_SPI_SS"   Value="SPI_SS"/>
+      <Attribute Name="PORT_SPI_CLK"  Value="SPI_CLK"/>
+      <Attribute Name="PORT_SPI_MOSI" Value="SPI_SI"/>
+    </Device>
+  </ExternalDevices>
+
+  <JTAGChain>
+     <JTAGDevice NodeId="0"/>
+  </JTAGChain>
+
+</Network>

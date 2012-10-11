@@ -52,6 +52,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                                 <option id="com.xmos.c.compiler.option.include.paths.11111" valueType="includePath" superClass="com.xmos.c.compiler.option.include.paths">
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include&quot;' />
@@ -75,6 +89,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                             </tool>
                             <tool id="com.xmos.cdt.cpp.compiler.base.1161396055" name="XMOS C++ Compiler" superClass="com.xmos.cdt.cpp.compiler.base">
@@ -101,6 +129,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                                 <option id="com.xmos.c.compiler.option.include.paths.11111" valueType="includePath" superClass="com.xmos.c.compiler.option.include.paths">
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include&quot;' />
@@ -124,6 +166,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                             </tool>
                             <tool id="com.xmos.cdt.xc.compiler.base.86146009" name="XMOS XC Compiler" superClass="com.xmos.cdt.xc.compiler.base">
@@ -155,6 +211,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/c++/4.2.1&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/c++/4.2.1/xcore-xmos-elf&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/gcc&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                                 <option id="com.xmos.c.compiler.option.include.paths.11111" valueType="includePath" superClass="com.xmos.c.compiler.option.include.paths">
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_TOOL_PATH}/target/include&quot;' />
@@ -182,6 +252,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/c++/4.2.1&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/c++/4.2.1/xcore-xmos-elf&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include/gcc&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                             </tool>
                             <tool id="com.xmos.cdt.core.assembler.base.839004633" name="XMOS Assembler" superClass="com.xmos.cdt.core.assembler.base">
@@ -209,6 +293,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                                 <option id="com.xmos.c.compiler.option.include.paths.11111" valueType="includePath" superClass="com.xmos.c.compiler.option.include.paths">
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include&quot;' />
@@ -232,6 +330,20 @@
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks/src}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_locks}&quot;' />
                                     <listOptionValue builtIn="false" value='&quot;${workspace_loc:/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc://home/steve/xmos-workspace-beta/sc_xtcp/module_pip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_pip/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/Swallow-Ethernet}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_ethernet/module_ethernet_board_support/common}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/doc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info/src}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_otp/module_otp_board_info}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/autoip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/dhcpc}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip/igmp}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src/xtcp_uip}&quot;' />
+                                    <listOptionValue builtIn="false" value='&quot;${workspace_loc:/sc_xtcp/module_xtcp/src}&quot;' />
                                 </option>
                             </tool>
                             <tool id="com.xmos.cdt.archiver.base.730151905" name="Archiver" superClass="com.xmos.cdt.archiver.base" />
