@@ -12,7 +12,7 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
   <Packages>
     <Package id="0" Type="XS1-L1A-TQ128">
       <Nodes>
-        <Node Id="0" InPackageId="0" Type="XS1-L1A" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="600MHz">
+        <Node Id="0" InPackageId="0" Type="XS1-L1A" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
         
           <Boot>
             <Source Location="SPI:bootFlash"/>

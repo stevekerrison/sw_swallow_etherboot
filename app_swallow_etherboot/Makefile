@@ -9,7 +9,7 @@ TARGET = Swallow-Ethernet
 APP_NAME = swallow_etherboot
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot module_ethernet pip
+USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot module_ethernet module_xtcp
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:
@@ -19,7 +19,7 @@ USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot module_ethernet pi
 ifeq "$(CONFIG)" "Debug"
 XCC_FLAGS = -g -O0
 else
-XCC_FLAGS = -g -O3 -report -lxscope
+XCC_FLAGS = -g -O3 -report -lxscope -DXTCP_SEPARATE_MAC
 endif
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make
