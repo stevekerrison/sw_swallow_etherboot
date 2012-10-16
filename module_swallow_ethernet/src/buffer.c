@@ -14,7 +14,11 @@ void buffer_init(struct buffer *buf)
 {
   buf->readpos = 0;
   buf->writepos = 0;
+  buf->slots_used = 0;
   buf->free = BUFFER_WORDS;
 }
 
-
+unsigned buffer_ptr(struct buffer *buf)
+{
+  return (unsigned)buf;
+}

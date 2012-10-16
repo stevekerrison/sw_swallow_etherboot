@@ -8,8 +8,14 @@
  * LICENSE.txt and at <http://github.xcore.com/>
  */
  
-#ifndef SWALLOW_ETHERNET_H
-#define SWALLOW_ETHERNET_H
+#ifndef ETHERNET_TX_H
+#define ETHERNET_TX_H
+
+#include "swallow_ethernet.h"
+#include "ptr.h"
+#include "buffer.h"
+
+void ethernet_tx(struct mii_tx PTREF mii, chanend ctrl);
 
 
-#endif //SWALLOW_ETHERNET_H
+#endif //ETHERNET_TX_H

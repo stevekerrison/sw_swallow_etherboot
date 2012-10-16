@@ -22,10 +22,13 @@ struct buffer {
   int readpos;
   int writepos;
   int free;
+  int slots_used;
   unsigned buf[BUFFER_WORDS];
 };
 
 void buffer_init(struct buffer PTREF buf);
+
+unsigned buffer_ptr(struct buffer PTREF buf);
 
 
 

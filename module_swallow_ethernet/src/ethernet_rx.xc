@@ -10,11 +10,12 @@
 
 #include <assert.h>
 #include <print.h>
+#include <xclib.h>
 #include "swallow_ethernet.h"
 #include "buffer.h"
 #include "ethernet_rx.h"
 
-static void ethernet_rx_init(struct mii_if &m)
+static void ethernet_rx_init(struct mii_rx &m)
 {
   set_port_use_on(m.p_mii_rxclk);
   m.p_mii_rxclk :> int _;
@@ -34,16 +35,19 @@ static void ethernet_rx_init(struct mii_if &m)
 	return;
 }
 
-inline int rx(struct buffer &buf, struct mii_if &mii, chanend ctrl)
+#pragma unsafe arrays
+int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 {
-  unsigned poly = 0xEDB88320, crc = 0x9226F562, word, start = buf.writepos, loop = 1, taillen, size;
+  unsigned start = buf.writepos, taillen, size;
+  register unsigned poly = 0xEDB88320, crc = 0x9226F562, word, wp = start, mask = BUFFER_WORDS-1, loop = 1;
+
   while(loop)
   {
     select
     {
       case mii.p_mii_rxd :> word:
-        buf.buf[buf.writepos] = word;
-        buf.writepos = (buf.writepos+1) & (BUFFER_WORDS-1);
+        buf.buf[wp++] = word;
+        wp &= mask;
         crc32(crc, word, poly);
         break;
       case mii.p_mii_rxdv when pinseq(0) :> int _:
@@ -51,54 +55,64 @@ inline int rx(struct buffer &buf, struct mii_if &mii, chanend ctrl)
         break;
     }
   }
-  taillen = endin(mii.p_mii_rxd) >> 4;
+  taillen = endin(mii.p_mii_rxd);
   mii.p_mii_rxd :> word;
-  buf.buf[buf.writepos] = word;
-  buf.writepos = (buf.writepos+1) & (BUFFER_WORDS-1);
+  buf.buf[wp++] = word >> (32 - taillen);
+  wp &= mask;
   if (buf.writepos < start)
   {
-    size = (BUFFER_WORDS-1-start)+buf.writepos;
+    size = (mask-start)+wp;
   }
   else
   {
-    size = buf.writepos - start;
+    size = wp - start;
   }
-  if (taillen == 4)
+  switch (taillen >> 3)
   {
-    crc32(crc,word,poly);
+    case 4:
+      crc32(crc,word,poly);
+      break;
+    #pragma fallthrough
+    case 3:
+      word = crc8shr(crc, word, poly);
+    #pragma fallthrough
+    case 2:
+      word = crc8shr(crc, word, poly);
+    #pragma fallthrough
+    case 1:
+      word = crc8shr(crc, word, poly);
+    default:
+      break;
   }
-  else
   {
-    switch (taillen)
+    int i;
+    //printhexln(taillen);
+    //printintln(size);
+    //printintln(wp);
+    //printhexln(crc);
+    for (i = 0; i < size; i++)
     {
-      #pragma fallthrough
-      case 3:
-        word = crc8shr(crc, word, poly);
-      #pragma fallthrough
-      case 2:
-        word = crc8shr(crc, word, poly);
-      #pragma fallthrough
-      case 1:
-        word = crc8shr(crc, word, poly);
-      default:
-        break;
+      printhex(byterev(buf.buf[buf.writepos+i]));
+      printchar(' ');
     }
+    printchar('\n');
   }
   if (~crc)
   {
-    buf.writepos = start;
     return -1;
   }
+  buf.writepos = wp;
   buf.free -= size;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */
   size -= (4-taillen);
+  buf.slots_used++;
   return size; /* In bytes */
 }
 
-void ethernet_rx(struct buffer &buf, struct mii_if &mii, chanend ctrl)
+void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 {
-  unsigned ctrlval;
+  unsigned ctrlval, waiting = 0;
   unsigned hasRoom = buf.free >= BUFFER_MINFREE;
   int size = 0;
   ethernet_rx_init(mii);
@@ -108,10 +122,22 @@ void ethernet_rx(struct buffer &buf, struct mii_if &mii, chanend ctrl)
     select
     {
       case ctrl :> ctrlval:
-        buf.free -= ctrlval;
-        assert(buf.free >= 0);
-        hasRoom = buf.free >= BUFFER_MINFREE;
-        ctrl <: size;
+        if (ctrlval > 0)
+        {
+          buf.free -= ctrlval;
+          buf.slots_used--;
+          assert(buf.free >= 0 && buf.slots_used >= 0);
+          hasRoom = buf.free >= BUFFER_MINFREE;
+        }
+        if (buf.slots_used > 0)
+        {
+          ctrl <: size;
+          waiting = 0;
+        }
+        else
+        {
+          waiting = 1;
+        }
         size = 0;
         break;
       case mii.p_mii_rxd when pinseq(0xD) :> int _:
@@ -122,6 +148,11 @@ void ethernet_rx(struct buffer &buf, struct mii_if &mii, chanend ctrl)
 			    break;
         }
         size = rx(buf,mii,ctrl);
+        if (size && waiting)
+        {
+          ctrl <: size;
+          waiting = 0;
+        }
         break;
     }
   }

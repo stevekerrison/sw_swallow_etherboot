@@ -16,7 +16,7 @@
 #include "buffer.h"
 
 
-void ethernet_rx(struct buffer PTREF buf, struct mii_if PTREF mii, chanend ctrl);
+void ethernet_rx(struct buffer PTREF buf, struct mii_rx PTREF mii, chanend ctrl);
 
 
 #endif //ETHERNET_RX_H

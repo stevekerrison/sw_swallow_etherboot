@@ -11,19 +11,30 @@
 #include <platform.h>
 #include "swallow_ethernet.h"
 #include "ethernet_rx.h"
+#include "ethernet_tx.h"
+#include "ethernet_app.h"
 #include "buffer.h"
 
 struct buffer rxbuf;
-struct buffer txbuf;
 
-void swallow_ethernet(struct mii_if &mii)
+void swallow_ethernet(struct mii_tx &mtx, struct mii_rx &mrx, chanend txapp, chanend rxapp)
 {
-  chan rxctrl, txctrl, appctrl, rxapp, txapp;
+  chan rxctrl, txctrl;
+  unsigned bufptr = buffer_ptr(rxbuf);
   buffer_init(rxbuf);
-  buffer_init(txbuf);
   par
   {
-    ethernet_rx(rxbuf,mii,rxctrl);
+    ethernet_rx(rxbuf,mrx,rxctrl);
+    ethernet_tx(mtx,txctrl);
+    ethernet_app(bufptr,txapp,rxapp,txctrl,rxctrl);
+    /*{
+      unsigned x = 0;
+      while(1) {x++;}
+    }
+    {
+      unsigned x = 0;
+      while(1) {x++;}
+    }*/
   }
   return;
 }
