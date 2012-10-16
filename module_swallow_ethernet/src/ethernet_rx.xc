@@ -58,7 +58,8 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   taillen = endin(mii.p_mii_rxd);
   mii.p_mii_rxd :> word;
-  buf.buf[wp++] = word >> (32 - taillen);
+  word >>= (32 - taillen);
+  buf.buf[wp++] = word;
   wp &= mask;
   if (buf.writepos < start)
   {
@@ -85,21 +86,12 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     default:
       break;
   }
-  {
-    int i;
-    //printhexln(taillen);
-    //printintln(size);
-    //printintln(wp);
-    //printhexln(crc);
-    for (i = 0; i < size; i++)
-    {
-      printhex(byterev(buf.buf[buf.writepos+i]));
-      printchar(' ');
-    }
-    printchar('\n');
-  }
   if (~crc)
   {
+    printstr("DISCARD ");
+    printhex(crc);
+    printchar(' ');
+    printintln(taillen);
     return -1;
   }
   buf.writepos = wp;
