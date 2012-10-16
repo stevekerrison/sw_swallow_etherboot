@@ -1,6 +1,7 @@
 /*
  * swallow_ethernet - Toplevel ethernet
  *
+ * Copyright (c) 2011, XMOS Ltd., All rights reserved
  * Copyright (C) 2012 Steve Kerrison <github@stevekerrison.com>
  *
  * This software is freely distributable under a derivative of the
