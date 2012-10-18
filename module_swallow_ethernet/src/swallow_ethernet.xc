@@ -16,25 +16,19 @@
 #include "buffer.h"
 
 struct buffer rxbuf;
+struct ipconfig cfg;
 
-void swallow_ethernet(struct mii_tx &mtx, struct mii_rx &mrx, chanend txapp, chanend rxapp)
+void swallow_ethernet(struct ipconfig &ipcfg, struct mii_tx &mtx, struct mii_rx &mrx, chanend txapp, chanend rxapp)
 {
   chan rxctrl, txctrl;
   unsigned bufptr = buffer_ptr(rxbuf);
   buffer_init(rxbuf);
+  cfg = ipcfg;
   par
   {
     ethernet_rx(rxbuf,mrx,rxctrl);
     ethernet_tx(mtx,txctrl);
     ethernet_app(bufptr,txapp,rxapp,txctrl,rxctrl);
-    /*{
-      unsigned x = 0;
-      while(1) {x++;}
-    }
-    {
-      unsigned x = 0;
-      while(1) {x++;}
-    }*/
   }
   return;
 }

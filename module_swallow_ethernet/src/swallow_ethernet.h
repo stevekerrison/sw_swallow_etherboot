@@ -29,7 +29,14 @@ struct mii_rx {
   in port p_mii_rxdv;             /**< MII RX data valid wire */
 };
 
-void swallow_ethernet(struct mii_tx PTREF mtx, struct mii_rx PTREF mrx, chanend txapp, chanend rxapp);
+struct ipconfig {
+  unsigned mac[2]; /* Our mac address (AA:BB:CC:DD:00:00:EE:FF) */
+  unsigned char ip[4]; /* Our IP (reversed: {1,0,168,192}) */
+};
+
+extern struct ipconfig cfg;
+
+void swallow_ethernet(struct ipconfig PTREF ipcfg, struct mii_tx PTREF mtx, struct mii_rx PTREF mrx, chanend txapp, chanend rxapp);
 
 
 #endif //SWALLOW_ETHERNET_H
