@@ -30,6 +30,9 @@ void buffer_init(struct buffer PTREF buf);
 
 unsigned buffer_ptr(struct buffer PTREF buf);
 
+#define buffer_offset(pos,inc)  ((pos) + (inc)) & (BUFFER_WORDS-1)
+#define buffer_incpos(pos,inc)  pos = buffer_offset(pos,inc);
+
 
 
 #endif //BUFFER_H

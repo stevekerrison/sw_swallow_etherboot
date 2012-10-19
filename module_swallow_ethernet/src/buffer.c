@@ -22,3 +22,4 @@ unsigned buffer_ptr(struct buffer *buf)
 {
   return (unsigned)buf;
 }
+
