@@ -30,7 +30,10 @@ void buffer_init(struct buffer PTREF buf);
 
 unsigned buffer_ptr(struct buffer PTREF buf);
 
-#define buffer_offset(pos,inc)  ((pos) + (inc)) & (BUFFER_WORDS-1)
+#define buffer_offset(pos,inc)  (((pos) + (inc)) & (BUFFER_WORDS-1))
+#define buffer_offset_byte(pos,inc) (((pos<<2) + (inc)) & ((BUFFER_WORDS<<2)-1))
+#define buffer_get_byte(buf,pos,inc) ((buf,char[])[buffer_offset_byte(pos,inc)])
+#define buffer_set_byte(buf,pos,inc,byte) (buf,char[])[buffer_offset_byte(pos,inc)] = byte
 #define buffer_incpos(pos,inc)  pos = buffer_offset(pos,inc);
 
 

@@ -39,77 +39,113 @@ static void ethernet_tx_init(struct mii_tx &m)
 	clearbuf(m.p_mii_txd);
 }
 
-static void tx(struct mii_tx &mii, unsigned size, unsigned pkt[])
+static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
 {
   register const unsigned poly = 0xEDB88320;
+  unsigned rp = buf.readpos;
   unsigned words = size >> 2, tail = size & 3, i = 1, crc = 0, word;
+  printstrln("TX!");
+  printintln(size);
+  /*for (i = 0; i < size; i += 4)
+  {
+    printhex(buf.buf[rp]);
+    printchar(' ');
+    buffer_incpos(rp,1)
+  }
+  printchar('\n');
+  i = 1;*/
+  rp = buf.readpos;
   mii.p_mii_txd <: 0x55555555;
 	mii.p_mii_txd <: 0x55555555;
 	mii.p_mii_txd <: 0xD5555555;
-	word = pkt[0];
+	word = buf.buf[rp];
+	buffer_incpos(rp,1)
 	mii.p_mii_txd <: word;
 	crc32(crc, ~word, poly);
 	do {
-	  word = pkt[i++];
+	  word = buf.buf[rp];
+	  buffer_incpos(rp,1);
 		crc32(crc, word, poly);
 		mii.p_mii_txd <: word;
-	} while (i < words);
-  switch(tail)
-  {
-  case 0:
-		crc32(crc, 0, poly);
-		crc = ~crc;
-		mii.p_mii_txd <: crc;
-		break;
-	case 1:
-	  word = pkt[i];
-		crc8shr(crc, word, poly);
-		partout(mii.p_mii_txd, 8, word);
-		crc32(crc, 0, poly);
-		crc = ~crc;
-		mii.p_mii_txd <: crc;
-		break;
-	case 2:
-	  word = pkt[i];
-		partout(mii.p_mii_txd, 16, word);
-		word = crc8shr(crc, word, poly);
-		crc8shr(crc, word, poly);
-		crc32(crc, 0, poly);
-		crc = ~crc;
-		mii.p_mii_txd <: crc;
-		break;
-	case 3:
-		word = pkt[i];
-		partout(mii.p_mii_txd, 24, word);
-		word = crc8shr(crc, word, poly);
-		word = crc8shr(crc, word, poly);
-		crc8shr(crc, word, poly);
-		crc32(crc, 0, poly);
-		crc = ~crc;
-		mii.p_mii_txd <: crc;
-		break;
+	} while (i++ < words);
+	if (size < 52)
+	{
+	  unsigned mask;
+	  switch (tail)
+	  {
+	    case 0:
+	      break;
+	    case 1:
+	      mask = 0xff;
+	      break;
+	    case 2:
+	      mask = 0xffff;
+	      break;
+	    case 3:
+	      mask = 0xffffff;
+	      break;
+	  }
+	  word = buf.buf[rp] & mask;
+	  crc32(crc, word, poly);
+		mii.p_mii_txd <: word;
+	  for (i = words*4; i < 52; i += 4)
+	  {
+	    crc32(crc, 0, poly);
+		  mii.p_mii_txd <: 0;
+	  }
+	}
+	else
+	{
+    switch(tail)
+    {
+    case 0:
+		  
+		  break;
+	  case 1:
+	    word = buf.buf[rp];
+		  crc8shr(crc, word, poly);
+		  partout(mii.p_mii_txd, 8, word);
+		  break;
+	  case 2:
+	    word = buf.buf[rp];
+		  partout(mii.p_mii_txd, 16, word);
+		  word = crc8shr(crc, word, poly);
+		  crc8shr(crc, word, poly);
+		  break;
+	  case 3:
+		  word = buf.buf[rp];
+		  partout(mii.p_mii_txd, 24, word);
+		  word = crc8shr(crc, word, poly);
+		  word = crc8shr(crc, word, poly);
+		  crc8shr(crc, word, poly);
+		  break;
+    }
   }
+  crc32(crc, 0, poly);
+  crc = ~crc;
+  mii.p_mii_txd <: crc;
   return;
 }
  
-void ethernet_tx(struct mii_tx &mii, chanend ctrl)
+void ethernet_tx(struct buffer &buf, struct mii_tx &mii, chanend ctrl)
 {
   timer t;
-  unsigned size, pkt[380], i, tv;
-  t :> tv;
+  unsigned size, i, tv;
   ethernet_tx_init(mii);
-  while(1)
+  t :> tv;
+  ctrl <: 0;
+  ctrl :> size;
+  printstr("SIZE: ");
+  printhexln(size);
+  while(size > 0)
   {
-    ctrl :> size;
     t when timerafter(tv) :> void;
-    slave {
-      for (i = 0; i < size; i += 1)
-      {
-        ctrl :> pkt[i];
-      }
-    }
-    tx(mii,size,pkt);
+    tx(buf,mii,size);
     t :> tv;
     tv += 156;
+    ctrl <: size;
+    ctrl :> size;
   }
+  printstrln("TX EXIT");
+  return;
 }

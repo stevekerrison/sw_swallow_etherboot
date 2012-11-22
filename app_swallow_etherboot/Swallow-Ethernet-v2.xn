@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Network xmlns="http://www.xmos.com"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
+  <Type>Board</Type>
+  <Name>Swallow Ethernet Board with 256Mbit SDRAM</Name>
+  
+    <Declarations>
+    <Declaration>core stdcore[1]</Declaration>
+  </Declarations>
+
+  <Packages>
+    <Package id="0" Type="XS1-L1A-TQ128">
+      <Nodes>
+        <Node Id="0" InPackageId="0" Type="XS1-L1A" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
+        
+          <Boot>
+            <Source Location="SPI:bootFlash"/>
+          </Boot>
+          
+          <Core Number="0" Reference="stdcore[0]">
+
+            <!-- GPIO ports -->
+	    <!-- LEDs are overloaded: L1_LED is SPI_CLK ; MEM_LED is P4B0, SPI_SI is GPIO 1, SPI_ SO is GPIO2, SPI_SS is GPIO3-->
+            <Port Location="XS1_PORT_1C" Name="L1_LED"/> <!-- also GPIO4 on the board -->
+            <Port Location="XS1_PORT_1D" Name="GPIO1"/>
+            <Port Location="XS1_PORT_1A" Name="GPIO2"/> <!--  SPI flash lines -->
+            <Port Location="XS1_PORT_1B" Name="GPIO3"/>
+                   
+	    <!-- SDRAM Ports -->
+            <Port Location="XS1_PORT_16B" Name="SDRAM_DA"/> <!--  SDRAM Data and address pins -->
+            <Port Location="XS1_PORT_4A" Name="SDRAM_CONTROL_1"/> <!-- Pins: 0: CS_N ; 1: WE_N ; 2: RAS_N; 3: CAS_N -->
+            <Port Location="XS1_PORT_4B" Name="SDRAM_CONTROL_2"/> <!-- Pins 0: MEM_LED ; 1: D_CLK_EN ; 2: P4B2 ; 3: P4B3 -->
+            <Port Location="XS1_PORT_1F" Name="SDRAM_DQM"/> <!--  SDRAM DQM line -->
+            <Port Location="XS1_PORT_1E" Name="SDRAM_CLK"/> <!--  SDRAM Clock line -->
+            
+	    <!-- Ethernet slice ports (PCIe header) -->
+            <Port Location="XS1_PORT_4C" Name="ETH_RXD"/> <!--  4 bit receive data -->
+            <Port Location="XS1_PORT_4D" Name="ETH_TXD"/> <!--  4 bit transmit data -->
+            <Port Location="XS1_PORT_1G" Name="ETH_RX_CLK"/> <!--  Receive clock -->
+            <Port Location="XS1_PORT_1L" Name="ETH_TX_EN"/> <!--  Transmit enable -->
+            <Port Location="XS1_PORT_1K" Name="ETH_TX_CLK"/> <!--  Transmit clock -->
+            <Port Location="XS1_PORT_1J" Name="ETH_MDC"/> <!--  I2C clock -->
+            <Port Location="XS1_PORT_1I" Name="ETH_MDIO"/> <!--  I2C data -->
+            <Port Location="XS1_PORT_1H" Name="ETH_RX_DV"/> <!--  Receive data valid -->
+         </Core>
+        </Node>
+      </Nodes>
+    </Package>
+  </Packages>
+            
+  <Links>
+
+    <!-- XLinks disabled for single board connectivity, but both XLC & XLD are available over 5 bit ports -->
+    <!-- when enabling an off-board link, set XSCOPE to other link here and with jumper on board -->
+
+
+    <!-- XSCOPE -->
+	<Link Encoding="2wire" Delays="4,4" Flags="SOD">
+	  <LinkEndpoint NodeId="0" Link="XLD"/>
+	  <LinkEndpoint RoutingId="0x8000" Chanend="1"/>
+	</Link>
+  </Links>
+            
+  <ExternalDevices>
+    <Device NodeId="0" Core="0" Class="SPIFlash" Name="bootFlash" Type="FL064K1F"> <!-- is AT25FS010 compatible -->
+     <!--  <Device NodeId="0" Core="0" Class="SPIFlash" Name="bootFlash" Type="AT25FS010"> -->
+      <Attribute Name="PORT_SPI_MISO" Value="GPIO2"/>
+      <Attribute Name="PORT_SPI_SS"   Value="GPIO3"/>
+      <Attribute Name="PORT_SPI_CLK"  Value="L1_LED"/> <!-- LED is MUXED with SCLK -->
+      <Attribute Name="PORT_SPI_MOSI" Value="GPIO1"/>
+    </Device>
+  </ExternalDevices>
+
+  <JTAGChain>
+     <JTAGDevice NodeId="0"/>
+  </JTAGChain>
+
+</Network>

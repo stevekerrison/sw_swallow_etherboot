@@ -10,34 +10,128 @@
 
 #include <print.h>
 #include <xclib.h>
+#include <assert.h>
 #include "ethernet_app.h"
 #include "swallow_ethernet.h"
 #include "ptr.h"
 #include "buffer.h"
 #include "swallow_comms.h"
 
-static void app_tx(chanend app, chanend ll, chanend ctrl)
+static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
 {
   unsigned cval, r = getLocalChanendId(ll);
-  while(1) {cval++;}
-  select
+  unsigned hasRoom = buf.free >= BUFFER_MINFREE, waiting = 0, llval, size;
+  while (1)
   {
-    case app :> cval:
-      if (cval == 0)
-      {
-        ctrl <: r;
-        ctrl :> cval;
-      }
-      break;
-    case ctrl :> cval:
-      if (cval == 0)
-      {
-        /* Give our neighbour the ID of LL thread for direct comms */
-        ctrl <: r;
-        /* Wait for neighbour to prod us to say he's finished */
-        ctrl :> cval;
-      }
-      break;
+    #pragma ordered
+    select
+    {
+      case ll :> llval:
+        if (llval > 0)
+        {
+          buf.free -= llval;
+          buf.slots_used--;
+          assert(buf.free >= 0 && buf.slots_used >= 0);
+          buffer_incpos(buf.writepos,llval);
+        }
+        if (buf.slots_used > 0)
+        {
+          unsigned size = buf.buf[buf.readpos];
+          buffer_incpos(buf.readpos,1);
+          ll <: size;
+          waiting = 0;
+        }
+        else
+        {
+          waiting = 1;
+        }
+        assert(hasRoom || buf.slots_used > 0);
+        break;
+      case ctrl :> cval:
+        size = cval;
+        if (cval == 1)
+        {
+          size = 42;
+        }
+        hasRoom = buf.free >= size;
+        while (!hasRoom)
+        {
+          ll :> llval;
+          if (llval > 0)
+          {
+            buf.free -= llval;
+            buf.slots_used--;
+            assert(buf.free >= 0 && buf.slots_used >= 0);
+            buffer_incpos(buf.writepos,llval);
+          }
+          if (buf.slots_used > 0)
+          {
+            unsigned size = buf.buf[buf.readpos];
+            buffer_incpos(buf.readpos,1);
+            ll <: size;
+            waiting = 0;
+          }
+          hasRoom = buf.free >= size;
+          assert(hasRoom || buf.slots_used > 0);
+        }
+        if (cval == 1) 
+        {
+          /* ARP response! */
+          int i;
+          char c;
+          unsigned word;
+          buf.slots_used++;
+          buf.free -= size + 1;
+          buf.buf[buf.writepos] = 42;
+          buffer_incpos(buf.writepos,1);
+          slave {
+            for (i = 0; i < 6; i += 1)
+            {
+              ctrl :> c;
+              buffer_set_byte(buf.buf,buf.writepos,i,c);
+              buffer_set_byte(buf.buf,buf.writepos,32+i,c);
+            }
+            ctrl :> word;
+          }
+          for (i = 38; i < 42; i += 1)
+          {
+            buffer_set_byte(buf.buf,buf.writepos,i,word & 0xff);
+            word >>= 8;
+          }
+          buffer_set_byte(buf.buf,buf.writepos,28,cfg.ip[2]);
+          buffer_set_byte(buf.buf,buf.writepos,29,cfg.ip[3]);
+          buffer_set_byte(buf.buf,buf.writepos,30,cfg.ip[0]);
+          buffer_set_byte(buf.buf,buf.writepos,31,cfg.ip[1]);
+          for (i = 0; i < 4; i += 1)
+          {
+            buffer_set_byte(buf.buf,buf.writepos,22+i,(cfg.mac[0],char[])[3-i]);
+            buffer_set_byte(buf.buf,buf.writepos,6+i,(cfg.mac[0],char[])[3-i]);
+          }
+          for (i = 0; i < 2; i += 1)
+          {
+            buffer_set_byte(buf.buf,buf.writepos,26+i,(cfg.mac[1],char[])[i+2]);
+            buffer_set_byte(buf.buf,buf.writepos,10+i,(cfg.mac[0],char[])[i+2]);
+          }
+          buf.buf[buffer_offset(buf.writepos,3)] = 0x01000608;
+          buf.buf[buffer_offset(buf.writepos,4)] = 0x04060008;
+          buffer_set_byte(buf.buf,buf.writepos,20,0x0);
+          buffer_set_byte(buf.buf,buf.writepos,21,0x2);
+          buffer_incpos(buf.writepos,42);
+        }
+        if (waiting)
+        {
+          buffer_incpos(buf.readpos,1);
+          ll <: size;
+        }
+        break;
+      case app :> cval:
+        if (cval == 0)
+        {
+          ctrl <: r;
+          ctrl :> cval;
+        }
+        break;
+    }
   }
   return;
 }
@@ -47,7 +141,7 @@ static inline int is_broadcast(struct buffer &buf)
   unsigned rp = buf.readpos;
   /* Check the first word in one shot, then the next two bytes in another if necessary */
   if (buf.buf[rp] != 0xffffffff) return 0;
-  else return buf.buf[++rp&(BUFFER_WORDS-1)] >> 16 == 0xffff;
+  else return (buf.buf[++rp&(BUFFER_WORDS-1)] & 0xffff) == 0xffff;
 }
 
 static inline int is_mac(struct buffer &buf)
@@ -55,23 +149,31 @@ static inline int is_mac(struct buffer &buf)
   unsigned rp = buf.readpos;
   /* Check the first word in one shot, then the next two bytes in another if necessary */
   if (buf.buf[rp] != cfg.mac[0]) return 0;
-  else return buf.buf[++rp&(BUFFER_WORDS-1)] >> 16 == cfg.mac[1];
+  else return (buf.buf[++rp&(BUFFER_WORDS-1)] & 0xffff) == cfg.mac[1];
 }
 
 static inline int check_ip(struct buffer &buf, unsigned bytepos)
 {
-  if (bytepos & 1)
+  unsigned ip = buf.buf[buffer_offset(buf.readpos,bytepos>>2)];
+  printhexln((cfg.ip,unsigned));
+  if (bytepos & 3) /* Unaligned */
   {
-    return 0;
+    unsigned ipb = buf.buf[buffer_offset(buf.readpos,(bytepos>>2)+1)];
+    switch (bytepos & 3)
+    {
+    case 1:
+      ip = (ip & 0xffffff00) | (ipb & 0x000000ff);
+      break;
+    case 2:
+      ip = (ip & 0xffff0000) | (ipb & 0x0000ffff);
+      break;
+    case 3:
+      ip = (ip & 0xff000000) | (ipb & 0x00ffffff);
+      break;
+    }
   }
-  else if (bytepos & 2)
-  {
-    return 0;
-  }
-  else
-  {
-    return buf.buf[buffer_offset(buf.readpos,bytepos>>2)] == (cfg.ip,unsigned);
-  }
+  printhexln(ip);
+  return ip == (cfg.ip,unsigned);
 }
 
 static int handle_arp(struct buffer &buf, chanend ctrl)
@@ -90,14 +192,16 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
   }
   /* Now handle ARP */
   {
-    unsigned rc, lc;
-    ctrl <: 0;
-    ctrl :> rc;
-    lc = getRemoteChanendId(ctrl);
-    
-  }
-  {
-    
+    int i;
+    ctrl <: 1;
+    master {
+      for (i = 22; i < 28; i += 1)
+      {
+        ctrl <: buffer_get_byte(buf,rp,i);
+      }
+      ctrl <: buf.buf[buffer_offset(rp,7)];
+    }
+    printstrln("ARP HANDLED IN RX");
   }
   return 0;
 }
@@ -121,16 +225,17 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
     ll :> size;
     size >>= 2;
   }
+  printstrln("RX EXIT");
   return;
 }
 
-void ethernet_app_xc(struct buffer &buf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl)
+void ethernet_app_xc(struct buffer &txbuf, struct buffer &rxbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl)
 {
   chan appctrl;
   par
   {
-    app_rx(buf,rxapp,rxctrl,appctrl);
-    app_tx(txapp,txctrl,appctrl);
+    app_rx(rxbuf,rxapp,rxctrl,appctrl);
+    app_tx(txbuf,txapp,txctrl,appctrl);
   }
   return;
 }

@@ -15,8 +15,8 @@
 #include "ptr.h"
 #include "buffer.h"
 
-void ethernet_app(unsigned buf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
-void ethernet_app_xc(struct buffer PTREF buf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
+void ethernet_app(unsigned rxbuf, unsigned txbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
+void ethernet_app_xc(struct buffer PTREF txbuf, struct buffer PTREF rxbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
 
 
 #endif //ETHERNET_APP_H

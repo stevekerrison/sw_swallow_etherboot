@@ -141,6 +141,7 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 			    break;
         }
         size = rx(buf,mii,ctrl);
+        printintln(size);
         if (size && waiting)
         {
           ctrl <: size;

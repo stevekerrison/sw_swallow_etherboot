@@ -1,7 +1,7 @@
 # The TARGET variable determines what target system the application is
 # compiled for. It either refers to an XN file in the source directories
 # or a valid argument for the --target option when compiling
-TARGET = Swallow-Ethernet
+TARGET = Swallow-Ethernet-v2
 
 # The APP_NAME variable determines the name of the final .xe file. It should
 # not include the .xe postfix. If left blank the name will default to
@@ -19,7 +19,7 @@ USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot swallow_ethernet
 ifeq "$(CONFIG)" "Debug"
 XCC_FLAGS = -g -O0
 else
-XCC_FLAGS = -g -O3 -report -lxscope
+XCC_FLAGS = -g -O3 -report -lxscope -fxscope
 endif
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make

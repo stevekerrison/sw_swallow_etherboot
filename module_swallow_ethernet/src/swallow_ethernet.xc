@@ -9,6 +9,7 @@
  */
 
 #include <platform.h>
+#include <xclib.h>
 #include "swallow_ethernet.h"
 #include "ethernet_rx.h"
 #include "ethernet_tx.h"
@@ -16,19 +17,32 @@
 #include "buffer.h"
 
 struct buffer rxbuf;
+struct buffer txbuf;
 struct ipconfig cfg;
 
 void swallow_ethernet(struct ipconfig &ipcfg, struct mii_tx &mtx, struct mii_rx &mrx, chanend txapp, chanend rxapp)
 {
   chan rxctrl, txctrl;
-  unsigned bufptr = buffer_ptr(rxbuf);
+  unsigned rxbufptr = buffer_ptr(rxbuf);
+  unsigned txbufptr = buffer_ptr(txbuf);
   buffer_init(rxbuf);
+  buffer_init(txbuf);
   cfg = ipcfg;
+  {
+    char tmp;
+    (cfg.ip,unsigned) = byterev((cfg.ip,unsigned));
+    tmp = cfg.ip[0];
+    cfg.ip[0] = cfg.ip[1];
+    cfg.ip[1] = tmp;
+    tmp = cfg.ip[2];
+    cfg.ip[2] = cfg.ip[3];
+    cfg.ip[3] = tmp;
+  }
   par
   {
     ethernet_rx(rxbuf,mrx,rxctrl);
-    ethernet_tx(mtx,txctrl);
-    ethernet_app(bufptr,txapp,rxapp,txctrl,rxctrl);
+    ethernet_tx(txbuf,mtx,txctrl);
+    ethernet_app(txbufptr,rxbufptr,txapp,rxapp,txctrl,rxctrl);
   }
   return;
 }

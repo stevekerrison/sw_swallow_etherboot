@@ -15,7 +15,7 @@
 #include "ptr.h"
 #include "buffer.h"
 
-void ethernet_tx(struct mii_tx PTREF mii, chanend ctrl);
+void ethernet_tx(struct buffer PTREF buf, struct mii_tx PTREF mii, chanend ctrl);
 
 
 #endif //ETHERNET_TX_H

@@ -15,23 +15,22 @@
 
 struct mii_tx mtx = {
   XS1_CLKBLK_2,
-  PORT_ETH_TXCLK,
-  PORT_ETH_TXEN,
-  PORT_ETH_TXD,
+  ETH_TX_CLK,
+  ETH_TX_EN,
+  ETH_TXD,
 };
 
 struct mii_rx mrx = {
   XS1_CLKBLK_1,
-  PORT_ETH_RXCLK,
-  XS1_PORT_1H,
-  PORT_ETH_RXD,
-  PORT_ETH_RXDV,
+  ETH_RX_CLK,
+  ETH_RXD,
+  ETH_RX_DV,
 };
 
 int main(void)
 {
   chan txapp, rxapp;
-  struct ipconfig cfg = { {0x0022975b,0x00010000}, {3,128,168,192}};
+  struct ipconfig cfg = { {0x0022975b,0x00010000}, {192,168,128,3}};
   xscope_register(0);
   xscope_config_io(XSCOPE_IO_BASIC);
   printstrln("Let the games begin...");
