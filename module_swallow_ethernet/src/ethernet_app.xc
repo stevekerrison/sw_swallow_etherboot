@@ -30,10 +30,9 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         if (llval > 0)
         {
           printstrln("PACKET CLEARED");
-          buf.free -= llval;
+          buf.free += (llval>>2)+((llval & 3) != 0);
           buf.slots_used--;
           assert(buf.free >= 0 && buf.slots_used >= 0);
-          buffer_incpos(buf.writepos,llval);
         }
         if (buf.slots_used > 0)
         {
@@ -51,21 +50,23 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         break;
       case ctrl :> cval:
         printstrln("REQ FROM RX THREAD");
+        printintln(buf.writepos);
         size = cval;
         if (cval == 1)
         {
+          printintln(buf.free);
           size = 42;
         }
-        hasRoom = buf.free >= size;
+        hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
         while (!hasRoom)
         {
+          printstrln("AINT GOT NO ROOM!");
           ll :> llval;
           if (llval > 0)
           {
-            buf.free -= llval;
+            buf.free += (llval>>2)+((llval & 3) != 0);
             buf.slots_used--;
             assert(buf.free >= 0 && buf.slots_used >= 0);
-            buffer_incpos(buf.writepos,llval);
           }
           if (buf.slots_used > 0)
           {
@@ -74,7 +75,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
             ll <: size;
             waiting = 0;
           }
-          hasRoom = buf.free >= size;
+          hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
           assert(hasRoom || buf.slots_used > 0);
         }
         if (cval == 1) 
@@ -84,8 +85,8 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           char c;
           unsigned word;
           buf.slots_used++;
-          buf.free -= size + 1;
-          buf.buf[buf.writepos] = 42;
+          buf.free -= (size>>2)+((size & 3) != 0);
+          buf.buf[buf.writepos] = size;
           buffer_incpos(buf.writepos,1);
           slave {
             for (i = 0; i < 6; i += 1)
@@ -118,7 +119,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           buf.buf[buffer_offset(buf.writepos,4)] = 0x04060008;
           buffer_set_byte(buf.buf,buf.writepos,20,0x0);
           buffer_set_byte(buf.buf,buf.writepos,21,0x2);
-          buffer_incpos(buf.writepos,42);
+          buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
         }
         if (waiting)
         {
@@ -157,7 +158,6 @@ static inline int is_mac(struct buffer &buf)
 static inline int check_ip(struct buffer &buf, unsigned bytepos)
 {
   unsigned ip = buf.buf[buffer_offset(buf.readpos,bytepos>>2)];
-  printhexln((cfg.ip,unsigned));
   if (bytepos & 3) /* Unaligned */
   {
     unsigned ipb = buf.buf[buffer_offset(buf.readpos,(bytepos>>2)+1)];
@@ -174,7 +174,6 @@ static inline int check_ip(struct buffer &buf, unsigned bytepos)
       break;
     }
   }
-  printhexln(ip);
   return ip == (cfg.ip,unsigned);
 }
 
@@ -213,7 +212,6 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   int size;
   ll <: 0;
   ll :> size;
-  size >>= 2;
   while(size > 0)
   {
     if (is_broadcast(buf) || is_mac(buf))
@@ -222,10 +220,9 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
       else if (1);
     }
-    buf.readpos = (buf.readpos + size) & (BUFFER_WORDS-1);
+    buf.readpos = (buf.readpos + (size>>2) + ((size & 3) != 0)) & (BUFFER_WORDS-1);
     ll <: size;
     ll :> size;
-    size >>= 2;
   }
   printstrln("RX EXIT");
   return;
