@@ -29,7 +29,6 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
       case ll :> llval:
         if (llval > 0)
         {
-          printstrln("PACKET CLEARED");
           buf.free += (llval>>2)+((llval & 3) != 0);
           buf.slots_used--;
           assert(buf.free >= 0 && buf.slots_used >= 0);
@@ -43,24 +42,20 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         }
         else
         {
-          printstrln("WAITING...");
           waiting = 1;
         }
         assert(hasRoom || buf.slots_used > 0);
         break;
       case ctrl :> cval:
-        printstrln("REQ FROM RX THREAD");
-        printintln(buf.writepos);
         size = cval;
         if (cval == 1)
         {
-          printintln(buf.free);
           size = 42;
         }
         hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
         while (!hasRoom)
         {
-          printstrln("AINT GOT NO ROOM!");
+          printstrln("TX FULL");
           ll :> llval;
           if (llval > 0)
           {
@@ -202,7 +197,6 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
       }
       ctrl <: buf.buf[buffer_offset(rp,7)];
     }
-    printstrln("ARP HANDLED IN RX");
   }
   return 0;
 }

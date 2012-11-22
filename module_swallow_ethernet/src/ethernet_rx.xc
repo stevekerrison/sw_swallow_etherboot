@@ -95,7 +95,7 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     return -1;
   }
   buf.writepos = wp-1;
-  buf.free -= size;
+  buf.free -= size - 1;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */
   size -= (4-taillen);
@@ -117,7 +117,7 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
       case ctrl :> ctrlval:
         if (ctrlval > 0)
         {
-          buf.free += ctrlval;
+          buf.free += (ctrlval>>2)+((ctrlval & 3) != 0);
           buf.slots_used--;
           assert(buf.free >= 0 && buf.slots_used >= 0);
           hasRoom = buf.free >= BUFFER_MINFREE;
@@ -142,9 +142,10 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 			    break;
         }
         size = rx(buf,mii,ctrl);
-        printintln(size);
-        printintln(buf.readpos);
-        printintln(buf.writepos);
+        //printintln(size);
+        //printintln(buf.readpos);
+        //printintln(buf.writepos);
+        printintln(buf.free);
         if (size && waiting)
         {
           ctrl <: size;
