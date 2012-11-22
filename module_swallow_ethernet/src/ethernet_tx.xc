@@ -44,8 +44,8 @@ static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
   register const unsigned poly = 0xEDB88320;
   unsigned rp = buf.readpos;
   unsigned words = size >> 2, tail = size & 3, i = 1, crc = 0, word;
-  printstrln("TX!");
-  printintln(size);
+  /*printstrln("TX!");
+  printintln(size);*/
   /*for (i = 0; i < size; i += 4)
   {
     printhex(buf.buf[rp]);
@@ -135,8 +135,6 @@ void ethernet_tx(struct buffer &buf, struct mii_tx &mii, chanend ctrl)
   t :> tv;
   ctrl <: 0;
   ctrl :> size;
-  printstr("SIZE: ");
-  printhexln(size);
   while(size > 0)
   {
     t when timerafter(tv) :> void;

@@ -94,7 +94,7 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     printintln(taillen);
     return -1;
   }
-  buf.writepos = wp;
+  buf.writepos = wp-1;
   buf.free -= size;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */

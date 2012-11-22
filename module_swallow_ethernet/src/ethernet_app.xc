@@ -29,6 +29,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
       case ll :> llval:
         if (llval > 0)
         {
+          printstrln("PACKET CLEARED");
           buf.free -= llval;
           buf.slots_used--;
           assert(buf.free >= 0 && buf.slots_used >= 0);
@@ -43,11 +44,13 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         }
         else
         {
+          printstrln("WAITING...");
           waiting = 1;
         }
         assert(hasRoom || buf.slots_used > 0);
         break;
       case ctrl :> cval:
+        printstrln("REQ FROM RX THREAD");
         size = cval;
         if (cval == 1)
         {
@@ -107,11 +110,10 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
             buffer_set_byte(buf.buf,buf.writepos,22+i,(cfg.mac[0],char[])[3-i]);
             buffer_set_byte(buf.buf,buf.writepos,6+i,(cfg.mac[0],char[])[3-i]);
           }
-          for (i = 0; i < 2; i += 1)
-          {
-            buffer_set_byte(buf.buf,buf.writepos,26+i,(cfg.mac[1],char[])[i+2]);
-            buffer_set_byte(buf.buf,buf.writepos,10+i,(cfg.mac[0],char[])[i+2]);
-          }
+          buffer_set_byte(buf.buf,buf.writepos,26,(cfg.mac[1],char[])[3]);
+          buffer_set_byte(buf.buf,buf.writepos,10,(cfg.mac[1],char[])[3]);
+          buffer_set_byte(buf.buf,buf.writepos,27,(cfg.mac[1],char[])[2]);
+          buffer_set_byte(buf.buf,buf.writepos,11,(cfg.mac[1],char[])[2]);
           buf.buf[buffer_offset(buf.writepos,3)] = 0x01000608;
           buf.buf[buffer_offset(buf.writepos,4)] = 0x04060008;
           buffer_set_byte(buf.buf,buf.writepos,20,0x0);
@@ -148,8 +150,8 @@ static inline int is_mac(struct buffer &buf)
 {
   unsigned rp = buf.readpos;
   /* Check the first word in one shot, then the next two bytes in another if necessary */
-  if (buf.buf[rp] != cfg.mac[0]) return 0;
-  else return (buf.buf[++rp&(BUFFER_WORDS-1)] & 0xffff) == cfg.mac[1];
+  if (byterev(buf.buf[rp]) != cfg.mac[0]) return 0;
+  else return (byterev(buf.buf[++rp&(BUFFER_WORDS-1)]) & 0xffff0000) == cfg.mac[1];
 }
 
 static inline int check_ip(struct buffer &buf, unsigned bytepos)
