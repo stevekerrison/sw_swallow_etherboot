@@ -61,8 +61,6 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   word >>= (32 - taillen);
   buf.buf[wp] = word;
   buffer_incpos(wp,1);
-  //printintln(wp);
-  //printintln(start);
   if (wp < start)
   {
     size = (mask-start)+wp+1;
@@ -98,13 +96,15 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   buf.writepos = wp-1;
   buf.free -= size - 1;
-  buf.sizes[buf.sizepostl].words = size-1;
+  buf.sizes[buf.sizepostl].words = size;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */
-  size -= (4-taillen);
+  size -= (4-(taillen>>3));
   buf.sizes[buf.sizepostl].bytes = size;
   buffer_incsizepos(buf.sizepostl,1); 
   buf.slots_used++;
+  printstr("SIZE: ");
+  printintln(size);
   return size; /* In bytes */
 }
 
