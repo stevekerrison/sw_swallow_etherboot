@@ -35,13 +35,14 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         }
         if (buf.slots_used > 0)
         {
-          unsigned size = buf.buf[buf.readpos];
-          buffer_incpos(buf.readpos,1);
+          unsigned size = buf.sizes[buf.sizepostl].bytes;
+          buffer_incsizepos(buf.sizepostl,1);
           ll <: size;
           waiting = 0;
         }
         else
         {
+          //printstrln("TX WAITING");
           waiting = 1;
         }
         assert(hasRoom || buf.slots_used > 0);
@@ -56,7 +57,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         while (!hasRoom)
         {
           printstrln("TX FULL");
-          ll :> llval;
+          /*ll :> llval;
           if (llval > 0)
           {
             buf.free += (llval>>2)+((llval & 3) != 0);
@@ -71,7 +72,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
             waiting = 0;
           }
           hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
-          assert(hasRoom || buf.slots_used > 0);
+          assert(hasRoom || buf.slots_used > 0);*/
         }
         if (cval == 1) 
         {
@@ -79,10 +80,12 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           int i;
           char c;
           unsigned word;
+          //printintln(buf.sizeposhd);
           buf.slots_used++;
           buf.free -= (size>>2)+((size & 3) != 0);
-          buf.buf[buf.writepos] = size;
-          buffer_incpos(buf.writepos,1);
+          buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
+          buf.sizes[buf.sizeposhd].bytes = size;
+          buffer_incsizepos(buf.sizeposhd,1);
           slave {
             for (i = 0; i < 6; i += 1)
             {
@@ -118,7 +121,7 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         }
         if (waiting)
         {
-          buffer_incpos(buf.readpos,1);
+          buffer_incsizepos(buf.sizepostl,1);
           ll <: size;
         }
         break;
@@ -193,7 +196,7 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
     master {
       for (i = 22; i < 28; i += 1)
       {
-        ctrl <: buffer_get_byte(buf,rp,i);
+        ctrl <: buffer_get_byte(buf.buf,rp,i);
       }
       ctrl <: buf.buf[buffer_offset(rp,7)];
     }
@@ -208,6 +211,8 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   ll :> size;
   while(size > 0)
   {
+    //printintln(buf.readpos);
+    //printintln(size);
     if (is_broadcast(buf) || is_mac(buf))
     {
       /* Deal with whatever type of frame we have */

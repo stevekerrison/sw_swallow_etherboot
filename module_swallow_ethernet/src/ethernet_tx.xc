@@ -42,29 +42,17 @@ static void ethernet_tx_init(struct mii_tx &m)
 static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
 {
   register const unsigned poly = 0xEDB88320;
-  unsigned rp = buf.readpos;
   unsigned words = size >> 2, tail = size & 3, i = 1, crc = 0, word;
-  /*printstrln("TX!");
-  printintln(size);*/
-  /*for (i = 0; i < size; i += 4)
-  {
-    printhex(buf.buf[rp]);
-    printchar(' ');
-    buffer_incpos(rp,1)
-  }
-  printchar('\n');
-  i = 1;*/
-  rp = buf.readpos;
   mii.p_mii_txd <: 0x55555555;
 	mii.p_mii_txd <: 0x55555555;
 	mii.p_mii_txd <: 0xD5555555;
-	word = buf.buf[rp];
-	buffer_incpos(rp,1)
+	word = buf.buf[buf.readpos];
+	buffer_incpos(buf.readpos,1);
 	mii.p_mii_txd <: word;
 	crc32(crc, ~word, poly);
 	do {
-	  word = buf.buf[rp];
-	  buffer_incpos(rp,1);
+	  word = buf.buf[buf.readpos];
+	  buffer_incpos(buf.readpos,1);
 		crc32(crc, word, poly);
 		mii.p_mii_txd <: word;
 	} while (i++ < words);
@@ -85,7 +73,7 @@ static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
 	      mask = 0xffffff;
 	      break;
 	  }
-	  word = buf.buf[rp] & mask;
+	  word = buf.buf[buf.readpos] & mask;
 	  crc32(crc, word, poly);
 		mii.p_mii_txd <: word;
 	  for (i = words*4; i < 52; i += 4)
@@ -102,18 +90,18 @@ static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
 		  
 		  break;
 	  case 1:
-	    word = buf.buf[rp];
+	    word = buf.buf[buf.readpos];
 		  crc8shr(crc, word, poly);
 		  partout(mii.p_mii_txd, 8, word);
 		  break;
 	  case 2:
-	    word = buf.buf[rp];
+	    word = buf.buf[buf.readpos];
 		  partout(mii.p_mii_txd, 16, word);
 		  word = crc8shr(crc, word, poly);
 		  crc8shr(crc, word, poly);
 		  break;
 	  case 3:
-		  word = buf.buf[rp];
+		  word = buf.buf[buf.readpos];
 		  partout(mii.p_mii_txd, 24, word);
 		  word = crc8shr(crc, word, poly);
 		  word = crc8shr(crc, word, poly);
@@ -124,6 +112,7 @@ static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
   crc32(crc, 0, poly);
   crc = ~crc;
   mii.p_mii_txd <: crc;
+  buffer_incpos(buf.readpos,-(tail == 0));
   return;
 }
  

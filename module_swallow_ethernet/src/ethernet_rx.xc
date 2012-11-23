@@ -47,8 +47,8 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     select
     {
       case mii.p_mii_rxd :> word:
-        buf.buf[wp++] = word;
-        wp &= mask;
+        buf.buf[wp] = word;
+        buffer_incpos(wp,1);
         crc32(crc, word, poly);
         break;
       case mii.p_mii_rxdv when pinseq(0) :> int _:
@@ -59,11 +59,13 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   taillen = endin(mii.p_mii_rxd);
   mii.p_mii_rxd :> word;
   word >>= (32 - taillen);
-  buf.buf[wp++] = word;
-  wp &= mask;
-  if (buf.writepos < start)
+  buf.buf[wp] = word;
+  buffer_incpos(wp,1);
+  //printintln(wp);
+  //printintln(start);
+  if (wp < start)
   {
-    size = (mask-start)+wp;
+    size = (mask-start)+wp+1;
   }
   else
   {
@@ -96,9 +98,12 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   buf.writepos = wp-1;
   buf.free -= size - 1;
+  buf.sizes[buf.sizepostl].words = size-1;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */
   size -= (4-taillen);
+  buf.sizes[buf.sizepostl].bytes = size;
+  buffer_incsizepos(buf.sizepostl,1); 
   buf.slots_used++;
   return size; /* In bytes */
 }
@@ -124,14 +129,16 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
         }
         if (buf.slots_used > 0)
         {
+          size = buf.sizes[buf.sizepostl].bytes;
           ctrl <: size;
+          buffer_incsizepos(buf.sizepostl,1);
           waiting = 0;
         }
         else
         {
+          //printstrln("WAITING");
           waiting = 1;
         }
-        size = 0;
         break;
       case mii.p_mii_rxd when pinseq(0xD) :> int _:
         if (!hasRoom)
@@ -143,12 +150,10 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
         }
         size = rx(buf,mii,ctrl);
         //printintln(size);
-        //printintln(buf.readpos);
-        //printintln(buf.writepos);
-        printintln(buf.free);
         if (size && waiting)
         {
           ctrl <: size;
+          buffer_incsizepos(buf.sizepostl,1);
           waiting = 0;
         }
         break;

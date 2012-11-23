@@ -15,6 +15,8 @@ void buffer_init(struct buffer *buf)
   buf->readpos = 0;
   buf->writepos = 0;
   buf->slots_used = 0;
+  buf->sizeposhd = 0;
+  buf->sizepostl = 0;
   buf->free = BUFFER_WORDS;
 }
 
