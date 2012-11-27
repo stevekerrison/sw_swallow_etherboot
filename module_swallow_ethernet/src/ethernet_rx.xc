@@ -83,6 +83,7 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     #pragma fallthrough
     case 1:
       word = crc8shr(crc, word, poly);
+      buffer_incpos(wp,1);
     default:
       break;
   }
@@ -103,8 +104,6 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   buf.sizes[buf.sizepostl].bytes = size;
   buffer_incsizepos(buf.sizepostl,1); 
   buf.slots_used++;
-  printstr("SIZE: ");
-  printintln(size);
   return size; /* In bytes */
 }
 
@@ -149,7 +148,6 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 			    break;
         }
         size = rx(buf,mii,ctrl);
-        //printintln(size);
         if (size && waiting)
         {
           ctrl <: size;

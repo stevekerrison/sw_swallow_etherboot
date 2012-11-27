@@ -17,6 +17,157 @@
 #include "buffer.h"
 #include "swallow_comms.h"
 
+/*
+ * Build an Eth/IP header out of an ARP response, where src/dst MAC & IP are ours & theirs.
+ * This suits our communication model where the only thing ARPing will be our control PC.
+ */
+static void build_header_from_arp(struct buffer &buf)
+{
+  for (int i = 0; i < 3; i += 1)
+  {
+    (arpc.header,unsigned[])[i] = buf.buf[buffer_offset(buf.writepos,i)];
+  }
+  (arpc.header,unsigned[])[3] = 0x00450008;
+  /*buffer_set_byte(buf.buf,buf.writepos,16,(size-10) >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);*/
+  arpc.header[18] = 0;
+  arpc.header[19] = 0;
+  (arpc.header,unsigned[])[5] = 0x01000040 | (0x40 << 16);
+  (arpc.header,unsigned[])[6] = 0;
+  arpc.header[26] = cfg.ip[2];
+  arpc.header[27] = cfg.ip[3];
+  arpc.header[28] = cfg.ip[0];
+  arpc.header[29] = cfg.ip[1];
+  arpc.header[30] = buffer_get_byte(buf.buf,buf.writepos,38);
+  arpc.header[31] = buffer_get_byte(buf.buf,buf.writepos,39);
+  arpc.header[32] = buffer_get_byte(buf.buf,buf.writepos,40);
+  arpc.header[33] = buffer_get_byte(buf.buf,buf.writepos,41);
+  /* IP checksum - Pre-calculate as much as we can right now */
+  {
+    unsigned ip_checksum = 0, i;
+    for (i = 14; i < 16; i += 2)
+    {
+      ip_checksum += arpc.header[i] | (arpc.header[i+1] << 8);
+    }
+    for (i = 18; i < 24; i += 2)
+    {
+      ip_checksum += arpc.header[i] | (arpc.header[i+1] << 8);
+    }
+    for (i = 26; i < 34; i += 2)
+    {
+      ip_checksum += arpc.header[i] | (arpc.header[i+1] << 8);
+    }
+    arpc.pre_checksum = ip_checksum;
+  }
+  arpc.populated = 1;
+  return;
+}
+
+static void build_arp_out(struct buffer &buf, chanend ctrl, unsigned size)
+{
+  int i;
+  char c;
+  unsigned word;
+  buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
+  buf.sizes[buf.sizeposhd].bytes = size;
+  buffer_incsizepos(buf.sizeposhd,1);
+  slave {
+    for (i = 0; i < 6; i += 1)
+    {
+      ctrl :> c;
+      buffer_set_byte(buf.buf,buf.writepos,i,c);
+      buffer_set_byte(buf.buf,buf.writepos,32+i,c);
+    }
+    ctrl :> word;
+  }
+  for (i = 38; i < 42; i += 1)
+  {
+    buffer_set_byte(buf.buf,buf.writepos,i,word & 0xff);
+    word >>= 8;
+  }
+  buffer_set_byte(buf.buf,buf.writepos,28,cfg.ip[2]);
+  buffer_set_byte(buf.buf,buf.writepos,29,cfg.ip[3]);
+  buffer_set_byte(buf.buf,buf.writepos,30,cfg.ip[0]);
+  buffer_set_byte(buf.buf,buf.writepos,31,cfg.ip[1]);
+  for (i = 0; i < 4; i += 1)
+  {
+    buffer_set_byte(buf.buf,buf.writepos,22+i,(cfg.mac[0],char[])[3-i]);
+    buffer_set_byte(buf.buf,buf.writepos,6+i,(cfg.mac[0],char[])[3-i]);
+  }
+  buffer_set_byte(buf.buf,buf.writepos,26,(cfg.mac[1],char[])[3]);
+  buffer_set_byte(buf.buf,buf.writepos,10,(cfg.mac[1],char[])[3]);
+  buffer_set_byte(buf.buf,buf.writepos,27,(cfg.mac[1],char[])[2]);
+  buffer_set_byte(buf.buf,buf.writepos,11,(cfg.mac[1],char[])[2]);
+  buf.buf[buffer_offset(buf.writepos,3)] = 0x01000608;
+  buf.buf[buffer_offset(buf.writepos,4)] = 0x04060008;
+  buffer_set_byte(buf.buf,buf.writepos,20,0x0);
+  buffer_set_byte(buf.buf,buf.writepos,21,0x2);
+  if (!arpc.populated)
+  {
+    build_header_from_arp(buf);
+  }
+  buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
+  return;
+}
+
+static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
+{
+  unsigned datalen, icmp_checksum, ip_checksum;
+  char b;
+  int i;
+  slave
+  {
+    for (i = 38; i < 42; i += 1)
+    {
+      ctrl :> b;
+      buffer_set_byte(buf.buf,buf.writepos,i,b);
+    }
+    ctrl :> datalen;
+    for (i = 42; i < datalen - 28 + 42; i += 1)
+    {
+      ctrl :> b;
+      buffer_set_byte(buf.buf,buf.writepos,i,b);
+    }
+    ctrl :> icmp_checksum;
+  }
+  for (i = 0; i < 8; i += 1)
+  {
+    buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
+  }
+  buffer_set_byte(buf.buf,buf.writepos,16,(size-10) >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);
+  buffer_set_byte(buf.buf,buf.writepos,18,0);
+  buffer_set_byte(buf.buf,buf.writepos,19,0);
+  buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
+  buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
+  /* IP checksum */
+  ip_checksum = 0;
+  for (i = 14; i < 24; i += 2)
+  {
+    ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
+  }
+  for (i = 26; i < 34; i += 2)
+  {
+    ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
+  }
+  while (ip_checksum >> 16)
+  {
+    ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
+  }
+  ip_checksum = byterev(~ip_checksum) >> 16;
+  buffer_set_byte(buf.buf,buf.writepos,24,ip_checksum >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,25,ip_checksum & 0xff);
+  /* ICMP checksum */
+  buffer_set_byte(buf.buf,buf.writepos,34,0x0);
+  buffer_set_byte(buf.buf,buf.writepos,35,0x0);
+  icmp_checksum += 0x0800;
+  icmp_checksum += (icmp_checksum >> 16);
+  buffer_set_byte(buf.buf,buf.writepos,36,icmp_checksum >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,37,icmp_checksum & 0xff);
+  buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
+  return;
+}
+
 static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
 {
   unsigned cval, r = getLocalChanendId(ll);
@@ -48,14 +199,17 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         assert(hasRoom || buf.slots_used > 0);
         break;
       case ctrl :> cval:
-        size = cval;
-        if (cval == 1)
+        switch (cval)
         {
-          size = 42;
-        }
-        else if (cval == 2)
-        {
-          ctrl :> size;
+          case 1:
+            size = 42;
+            break;
+          case 2:
+            ctrl :> size;
+            break;
+          default:
+            size = 0;
+            break;
         }
         hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
         while (!hasRoom)
@@ -78,133 +232,23 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
           assert(hasRoom || buf.slots_used > 0);
         }
-        if (cval == 1) 
+        buf.slots_used++;
+        buf.free -= (size>>2)+((size & 3) != 0);
+        switch (cval)
         {
-          /* ARP response! */
-          int i;
-          char c;
-          unsigned word;
-          //printintln(buf.sizeposhd);
-          buf.slots_used++;
-          buf.free -= (size>>2)+((size & 3) != 0);
-          buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
-          buf.sizes[buf.sizeposhd].bytes = size;
-          buffer_incsizepos(buf.sizeposhd,1);
-          slave {
-            for (i = 0; i < 6; i += 1)
-            {
-              ctrl :> c;
-              buffer_set_byte(buf.buf,buf.writepos,i,c);
-              buffer_set_byte(buf.buf,buf.writepos,32+i,c);
-            }
-            ctrl :> word;
-          }
-          for (i = 38; i < 42; i += 1)
-          {
-            buffer_set_byte(buf.buf,buf.writepos,i,word & 0xff);
-            word >>= 8;
-          }
-          buffer_set_byte(buf.buf,buf.writepos,28,cfg.ip[2]);
-          buffer_set_byte(buf.buf,buf.writepos,29,cfg.ip[3]);
-          buffer_set_byte(buf.buf,buf.writepos,30,cfg.ip[0]);
-          buffer_set_byte(buf.buf,buf.writepos,31,cfg.ip[1]);
-          for (i = 0; i < 4; i += 1)
-          {
-            buffer_set_byte(buf.buf,buf.writepos,22+i,(cfg.mac[0],char[])[3-i]);
-            buffer_set_byte(buf.buf,buf.writepos,6+i,(cfg.mac[0],char[])[3-i]);
-          }
-          buffer_set_byte(buf.buf,buf.writepos,26,(cfg.mac[1],char[])[3]);
-          buffer_set_byte(buf.buf,buf.writepos,10,(cfg.mac[1],char[])[3]);
-          buffer_set_byte(buf.buf,buf.writepos,27,(cfg.mac[1],char[])[2]);
-          buffer_set_byte(buf.buf,buf.writepos,11,(cfg.mac[1],char[])[2]);
-          buf.buf[buffer_offset(buf.writepos,3)] = 0x01000608;
-          buf.buf[buffer_offset(buf.writepos,4)] = 0x04060008;
-          buffer_set_byte(buf.buf,buf.writepos,20,0x0);
-          buffer_set_byte(buf.buf,buf.writepos,21,0x2);
-          buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
+          case 1:
+            /* ARP response! */
+            build_arp_out(buf,ctrl,size);
+            break;
+          case 2:
+            /* ICMP response */
+            build_icmp_echo(buf,ctrl,size);
+            break;
+          default:
+            /* Nothing to do! */
+            break;
         }
-        else if (cval == 2)
-        {
-          unsigned word, datalen, icmp_checksum, ip_checksum, ttl = 0x40;
-          char b;
-          int i;
-          slave
-          {
-            for (i = 0; i < 6; i += 1)
-            {
-              ctrl :> b;
-              buffer_set_byte(buf.buf,buf.writepos,i,b);
-            }
-            for (i = 30; i < 34; i += 1)
-            {
-              ctrl :> b;
-              buffer_set_byte(buf.buf,buf.writepos,i,b);
-            }
-            for (i = 38; i < 42; i += 1)
-            {
-              ctrl :> b;
-              buffer_set_byte(buf.buf,buf.writepos,i,b);
-            }
-            ctrl :> datalen;
-            for (i = 42; i < datalen - 28 + 42; i += 1)
-            {
-              ctrl :> b;
-              buffer_set_byte(buf.buf,buf.writepos,i,b);
-            }
-            ctrl :> icmp_checksum;
-          }
-          buffer_set_byte(buf.buf,buf.writepos,6,(cfg.mac[0],char[])[3]);
-          buffer_set_byte(buf.buf,buf.writepos,7,(cfg.mac[0],char[])[2]);
-          buffer_set_byte(buf.buf,buf.writepos,8,(cfg.mac[0],char[])[1]);
-          buffer_set_byte(buf.buf,buf.writepos,9,(cfg.mac[0],char[])[0]);
-          buffer_set_byte(buf.buf,buf.writepos,10,(cfg.mac[1],char[])[3]);
-          buffer_set_byte(buf.buf,buf.writepos,11,(cfg.mac[1],char[])[2]);
-          buf.buf[buffer_offset(buf.writepos,3)] = 0x00450008;
-          buffer_set_byte(buf.buf,buf.writepos,16,(size-10) >> 8);
-          buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);
-          buffer_set_byte(buf.buf,buf.writepos,18,0);
-          buffer_set_byte(buf.buf,buf.writepos,19,0);
-          buf.buf[buffer_offset(buf.writepos,5)] = 0x01000040 | (ttl << 16);
-          buf.buf[buffer_offset(buf.writepos,6)] = 0;
-          buffer_set_byte(buf.buf,buf.writepos,26,cfg.ip[2]);
-          buffer_set_byte(buf.buf,buf.writepos,27,cfg.ip[3]);
-          buffer_set_byte(buf.buf,buf.writepos,28,cfg.ip[0]);
-          buffer_set_byte(buf.buf,buf.writepos,29,cfg.ip[1]);
-          /* IP checksum */
-          ip_checksum = 0;
-          for (i = 14; i < 24; i += 2)
-          {
-            ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
-          }
-          for (i = 26; i < 34; i += 2)
-          {
-            ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
-          }
-          while (ip_checksum >> 16)
-          {
-            ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
-          }
-          ip_checksum = byterev(~ip_checksum) >> 16;
-          buffer_set_byte(buf.buf,buf.writepos,24,ip_checksum >> 8);
-          buffer_set_byte(buf.buf,buf.writepos,25,ip_checksum & 0xff);
-          /* ICMP checksum */
-          buffer_set_byte(buf.buf,buf.writepos,34,0x0);
-          buffer_set_byte(buf.buf,buf.writepos,35,0x0);
-          icmp_checksum += 0x0800;
-          icmp_checksum += (icmp_checksum >> 16);
-          buffer_set_byte(buf.buf,buf.writepos,36,icmp_checksum >> 8);
-          buffer_set_byte(buf.buf,buf.writepos,37,icmp_checksum & 0xff);
-          /*while (ip_checksum >> 16)
-          {
-            ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
-          }
-          ip_checksum = byterev(~ip_checksum) >> 16;
-          buffer_set_byte(buf.buf,buf.writepos,24,ip_checksum >> 8);
-          buffer_set_byte(buf.buf,buf.writepos,25,ip_checksum & 0xff);*/
-          printintln(size);
-          buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
-        }
-        if (waiting)
+        if (waiting && size)
         {
           buffer_incsizepos(buf.sizepostl,1);
           ll <: size;
@@ -328,15 +372,6 @@ static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
     ctrl <: 2;
     ctrl <: size-8;
     master {
-      for (i = 6; i < 12; i += 1)
-      {
-        ctrl <: buffer_get_byte(buf.buf,buf.readpos,i);
-      }
-      /* Src */
-      for (i = 26; i < 30; i += 1)
-      {
-        ctrl <: buffer_get_byte(buf.buf,buf.readpos,i);
-      }
       for (i = 38; i < 42; i += 1)
       {
         ctrl <: buffer_get_byte(buf.buf,buf.readpos,i);

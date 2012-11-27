@@ -19,6 +19,7 @@
 struct buffer rxbuf;
 struct buffer txbuf;
 struct ipconfig cfg;
+struct arpcache arpc; /* A single-entry ARP table because we only really want to talk to one thing */
 
 void swallow_ethernet(struct ipconfig &ipcfg, struct mii_tx &mtx, struct mii_rx &mrx, chanend txapp, chanend rxapp)
 {
@@ -28,6 +29,7 @@ void swallow_ethernet(struct ipconfig &ipcfg, struct mii_tx &mtx, struct mii_rx 
   buffer_init(rxbuf);
   buffer_init(txbuf);
   cfg = ipcfg;
+  arpc.populated = 0;
   {
     char tmp;
     (cfg.ip,unsigned) = byterev((cfg.ip,unsigned));

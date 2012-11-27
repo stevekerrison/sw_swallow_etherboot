@@ -119,17 +119,15 @@ static void tx(struct buffer &buf, struct mii_tx &mii, unsigned size)
 void ethernet_tx(struct buffer &buf, struct mii_tx &mii, chanend ctrl)
 {
   timer t;
-  unsigned size, i, tv;
+  unsigned size, tv;
   ethernet_tx_init(mii);
-  t :> tv;
   ctrl <: 0;
   ctrl :> size;
   while(size > 0)
   {
-    t when timerafter(tv) :> void;
     tx(buf,mii,size);
     t :> tv;
-    tv += 156;
+    t when timerafter(tv + 95) :> void;
     ctrl <: size;
     ctrl :> size;
   }

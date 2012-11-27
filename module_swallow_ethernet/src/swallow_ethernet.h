@@ -33,7 +33,16 @@ struct ipconfig {
   unsigned char ip[4]; /* Our IP (reversed: {1,0,168,192}) */
 };
 
+struct arpcache {
+  unsigned populated;
+  unsigned pre_checksum;
+  unsigned mac[2];
+  unsigned char ip[4];
+  unsigned char header[34];
+};
+
 extern struct ipconfig cfg;
+extern struct arpcache arpc;
 
 void swallow_ethernet(struct ipconfig PTREF ipcfg, struct mii_tx PTREF mtx, struct mii_rx PTREF mrx, chanend txapp, chanend rxapp);
 
