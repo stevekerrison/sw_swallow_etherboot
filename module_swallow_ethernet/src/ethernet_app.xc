@@ -396,6 +396,7 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   {
     //printintln(buf.readpos);
     //printintln(size);
+    //printhexln(buf.buf[buf.readpos]);
     if (is_broadcast(buf) || is_mac(buf))
     {
       /* Deal with whatever type of frame we have */

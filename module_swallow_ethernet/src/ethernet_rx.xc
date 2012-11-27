@@ -58,16 +58,11 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   taillen = endin(mii.p_mii_rxd);
   mii.p_mii_rxd :> word;
-  word >>= (32 - taillen);
-  buf.buf[wp] = word;
-  buffer_incpos(wp,1);
-  if (wp < start)
+  if (taillen)
   {
-    size = (mask-start)+wp+1;
-  }
-  else
-  {
-    size = wp - start;
+    word >>= (32 - taillen);
+    buf.buf[wp] = word;
+    buffer_incpos(wp,1);
   }
   switch (taillen >> 3)
   {
@@ -83,7 +78,7 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     #pragma fallthrough
     case 1:
       word = crc8shr(crc, word, poly);
-      buffer_incpos(wp,1);
+      break;
     default:
       break;
   }
@@ -95,14 +90,19 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
     printintln(taillen);
     return -1;
   }
-  buf.writepos = wp-1;
-  buf.free -= size - 1;
+  size = (wp - start) & mask;
+  buf.writepos = wp;
+  buf.free -= size;
+  //printintln(size);
   buf.sizes[buf.sizepostl].words = size;
   assert(buf.free >= 0);
   size <<= 2; /* Multiply by 4 */
-  size -= (4-(taillen>>3));
+  if (taillen)
+  {
+    size -= (4-(taillen>>3));
+  }
+  //printintln(size);
   buf.sizes[buf.sizepostl].bytes = size;
-  buffer_incsizepos(buf.sizepostl,1); 
   buf.slots_used++;
   return size; /* In bytes */
 }
