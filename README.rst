@@ -66,12 +66,13 @@ data.
 
 The UDP payload format is as follows:
 
-+============================================================================================================+
-|  16-bits   |    8-bits  | 8-bits |  16-bits   |    8-bits  | 8-bits   | 8-bits | 24-bits | n-bits | 16-bits|
-+------------|------------|--------|------------|------------|----------|--------|---------|--------|--------+
-| Dest. Node | Dest. Chan |  0x02  | Rtn. Node  |  Rtn. Chan | Rtn Flag | Format | Length  |  Data  | Tail   |
-+============================================================================================================+
++======================================================================================================================+
+| 16-bits |  16-bits   |    8-bits  | 8-bits |  16-bits   |    8-bits  | 8-bits   | 8-bits | 24-bits | n-bits | 16-bits|
++---------|------------|------------|--------|------------|------------|----------|--------|---------|--------|--------+
+| 0xda7a  | Dest. Node | Dest. Chan |  0x02  | Rtn. Node  |  Rtn. Chan | Rtn Flag | Format | Length  |  Data  | Tail   |
++======================================================================================================================+
 
+0xda7a (data) : A header to identify this packet and improve alignment of the data once it's in the grid.
 Dest. Node: The logical node ID of the destination core. This will be translated into the actual node ID, so nodes
  can be addressed contiguously externally, whilst they might not be so internally.
 Dest. Chan: The chanend to communicate to followed by 0x02 to represent a channel resource

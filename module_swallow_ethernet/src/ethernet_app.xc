@@ -355,11 +355,6 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
 static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
 {
   unsigned len;
-  if (buffer_get_byte(buf.buf,buf.readpos,23) != 0x01)
-  {
-    //Not ICMP
-    return 0;
-  }
   if (buf.buf[buffer_offset(buf.readpos,3)] != 0x00450008)
   {
     //Invalid et_ver_hdrl_tos
@@ -368,14 +363,6 @@ static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   if ((buf.buf[buffer_offset(buf.readpos,8)] >> 16) != 0x0008)
   {
     //Invalid type code
-    return 0;
-  }
-  if (!is_my_ip(buf))
-  {
-    return 0;
-  }
-  if (!ip_checksum_valid(buf))
-  {
     return 0;
   }
   len = byterev(buf.buf[buffer_offset(buf.readpos,4)]) >> 16;
@@ -405,15 +392,57 @@ static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   return 1;
 }
 
-static int handle_udp_tftp(struct buffer &buf, chanend ctrl, unsigned size)
+static int udp_dst_port(struct buffer &buf)
+{
+  return byterev(buf.buf[buffer_offset(buf.readpos,9)]) >> 16;
+}
+
+static int udp_src_port(struct buffer &buf)
+{
+  return byterev(buf.buf[buffer_offset(buf.readpos,8)]) & 0xffff;
+}
+
+static int udp_len(struct buffer &buf)
+{
+  return (byterev(buf.buf[buffer_offset(buf.readpos,9)]) & 0xffff)-8;
+}
+
+static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
 {
   return 0;
 }
 
-static int handle_udp_9191(struct buffer &buf, chanend ctrl, unsigned size)
+static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
-  return 0;
+  unsigned dst, rtn, len, format;
+  if (udp_len(buf) < 16)
+  {
+    //Malformed prologue
+    return 0;
+  }
+  dst = byterev(buf.buf[buffer_offset(buf.readpos,11)]);
+  rtn = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
+  len = byterev(buf.buf[buffer_offset(buf.readpos,13)]);
+  format = len >> 24;
+  len &= 0x00ffffff;
+  printstr("Destination: ");
+  printhexln(dst);
+  printstr("Return path: ");
+  printhexln(rtn);
+  printstr("Format: ");
+  printhexln(format);
+  printstr("Length: ");
+  printintln(len);
+  printintln(udp_len(buf));
+  if (len * format + 16 < udp_len(buf))
+  {
+    //Less data expected than the packet contains!
+    return 0;
+  }
+  printstrln("YAY");
 }
+
+
 
 static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
 {
@@ -422,16 +451,33 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   ll :> size;
   while(size > 0)
   {
-    //printintln(buf.readpos);
-    //printintln(size);
-    //printhexln(buf.buf[buf.readpos]);
     if (is_mac_broadcast(buf) || is_mac(buf))
     {
       /* Deal with whatever type of frame we have */
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
-      else if (handle_icmp_echo(buf,ctrl,size));
-      else if (handle_udp_tftp(buf,ctrl,size));
-      else if (handle_udp_9191(buf,ctrl,size));
+      else if (is_my_ip(buf) && ip_checksum_valid(buf))
+      {
+        switch (buffer_get_byte(buf.buf,buf.readpos,23))
+        {
+        case 0x1: //ICMP
+          handle_icmp_echo(buf,ctrl,size);
+          break;
+        case 0x11: //UDP
+          if (udp_dst_port(buf) == 69)
+          {
+            handle_udp_tftp(buf,app,size);
+          }
+          else if (udp_dst_port(buf) == 0x5b5b)
+          {
+            handle_udp_5b5b(buf,app,size);
+          }
+          break;
+        default:
+          break;
+        }
+      }
+      /*else if (handle_udp_tftp(buf,app,size));
+      else if (handle_udp_5b5b(buf,app,size));*/
     }
     buf.readpos = (buf.readpos + (size>>2) + ((size & 3) != 0)) & (BUFFER_WORDS-1);
     ll <: size;
