@@ -15,6 +15,7 @@
 #include "ethernet_tx.h"
 #include "ethernet_app.h"
 #include "buffer.h"
+#include <print.h>
 
 struct buffer rxbuf;
 struct buffer txbuf;
@@ -32,13 +33,18 @@ void swallow_ethernet(struct ipconfig &ipcfg, struct mii_tx &mtx, struct mii_rx 
   arpc.populated = 0;
   {
     char tmp;
-    (cfg.ip,unsigned) = byterev((cfg.ip,unsigned));
     tmp = cfg.ip[0];
-    cfg.ip[0] = cfg.ip[1];
-    cfg.ip[1] = tmp;
-    tmp = cfg.ip[2];
-    cfg.ip[2] = cfg.ip[3];
+    cfg.ip[0] = cfg.ip[2];
+    cfg.ip[2] = tmp;
+    tmp = cfg.ip[1];
+    cfg.ip[1] = cfg.ip[3];
     cfg.ip[3] = tmp;
+    tmp = cfg.mask[0];
+    cfg.mask[0] = cfg.mask[2];
+    cfg.mask[2] = tmp;
+    tmp = cfg.mask[1];
+    cfg.mask[1] = cfg.mask[3];
+    cfg.mask[3] = tmp;
   }
   par
   {

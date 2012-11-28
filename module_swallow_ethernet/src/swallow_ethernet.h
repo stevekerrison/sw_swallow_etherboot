@@ -31,6 +31,7 @@ struct mii_rx {
 struct ipconfig {
   unsigned mac[2]; /* Our mac address (AA:BB:CC:DD:00:00:EE:FF) */
   unsigned char ip[4]; /* Our IP (reversed: {1,0,168,192}) */
+  unsigned char mask[4]; /* Netmask */
 };
 
 struct arpcache {

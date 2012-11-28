@@ -63,6 +63,20 @@ static void build_header_from_arp(struct buffer &buf)
   return;
 }
 
+static inline void ip_build_checksum(struct buffer &buf)
+{
+  unsigned ip_checksum = arpc.pre_checksum;
+  ip_checksum += buffer_get_byte(buf.buf,buf.writepos,16) | (buffer_get_byte(buf.buf,buf.writepos,17) << 8);
+  while (ip_checksum >> 16)
+  {
+    ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
+  }
+  ip_checksum = byterev(~ip_checksum) >> 16;
+  buffer_set_byte(buf.buf,buf.writepos,24,ip_checksum >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,25,ip_checksum & 0xff);
+  return;
+}
+
 static void build_arp_out(struct buffer &buf, chanend ctrl, unsigned size)
 {
   int i;
@@ -112,7 +126,7 @@ static void build_arp_out(struct buffer &buf, chanend ctrl, unsigned size)
 
 static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
 {
-  unsigned datalen, icmp_checksum, ip_checksum;
+  unsigned datalen, icmp_checksum;
   char b;
   int i;
   slave
@@ -134,29 +148,13 @@ static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   {
     buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
   }
+  buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
+  buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
   buffer_set_byte(buf.buf,buf.writepos,16,(size-10) >> 8);
   buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);
   buffer_set_byte(buf.buf,buf.writepos,18,0);
   buffer_set_byte(buf.buf,buf.writepos,19,0);
-  buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
-  buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
-  /* IP checksum */
-  ip_checksum = 0;
-  for (i = 14; i < 24; i += 2)
-  {
-    ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
-  }
-  for (i = 26; i < 34; i += 2)
-  {
-    ip_checksum += buffer_get_byte(buf.buf,buf.writepos,i) | (buffer_get_byte(buf.buf,buf.writepos,i+1) << 8);
-  }
-  while (ip_checksum >> 16)
-  {
-    ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
-  }
-  ip_checksum = byterev(~ip_checksum) >> 16;
-  buffer_set_byte(buf.buf,buf.writepos,24,ip_checksum >> 8);
-  buffer_set_byte(buf.buf,buf.writepos,25,ip_checksum & 0xff);
+  ip_build_checksum(buf);
   /* ICMP checksum */
   buffer_set_byte(buf.buf,buf.writepos,34,0x0);
   buffer_set_byte(buf.buf,buf.writepos,35,0x0);
@@ -266,7 +264,21 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   return;
 }
 
-static inline int is_broadcast(struct buffer &buf)
+static inline int ip_checksum_valid(struct buffer &buf)
+{
+  unsigned ip_checksum = 0, i;
+  for (i = 14; i < 34; i += 2)
+  {
+    ip_checksum += buffer_get_byte(buf.buf,buf.readpos,i) | (buffer_get_byte(buf.buf,buf.readpos,i+1) << 8);
+  }
+  while (ip_checksum >> 16)
+  {
+    ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
+  }
+  return ((~ip_checksum) & 0xffff) == 0;
+}
+
+static inline int is_mac_broadcast(struct buffer &buf)
 {
   unsigned rp = buf.readpos;
   /* Check the first word in one shot, then the next two bytes in another if necessary */
@@ -280,6 +292,13 @@ static inline int is_mac(struct buffer &buf)
   /* Check the first word in one shot, then the next two bytes in another if necessary */
   if (byterev(buf.buf[rp]) != cfg.mac[0]) return 0;
   else return (byterev(buf.buf[++rp&(BUFFER_WORDS-1)]) & 0xffff0000) == cfg.mac[1];
+}
+
+static inline int is_my_ip(struct buffer &buf)
+{
+  unsigned ip = (buf.buf[buffer_offset(buf.readpos,7)] & 0xffff0000) |
+      (buf.buf[buffer_offset(buf.readpos,8)] & 0x0000ffff);
+  return ip == (cfg.ip,unsigned);
 }
 
 static inline int check_ip(struct buffer &buf, unsigned bytepos)
@@ -330,7 +349,7 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
       ctrl <: buf.buf[buffer_offset(rp,7)];
     }
   }
-  return 0;
+  return 1;
 }
 
 static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
@@ -351,14 +370,13 @@ static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
     //Invalid type code
     return 0;
   }
+  if (!is_my_ip(buf))
   {
-    unsigned ip = (buf.buf[buffer_offset(buf.readpos,7)] & 0xffff0000) |
-      (buf.buf[buffer_offset(buf.readpos,8)] & 0x0000ffff);
-    if (ip != (cfg.ip,unsigned))
-    {
-      //Not our IP
-      return 0;
-    }
+    return 0;
+  }
+  if (!ip_checksum_valid(buf))
+  {
+    return 0;
   }
   len = byterev(buf.buf[buffer_offset(buf.readpos,4)]) >> 16;
   if (size >= 64 && size != len + 18)
@@ -384,6 +402,16 @@ static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
       ctrl <: byterev(buf.buf[buffer_offset(buf.readpos,9)]) >> 16;
     }
   }
+  return 1;
+}
+
+static int handle_udp_tftp(struct buffer &buf, chanend ctrl, unsigned size)
+{
+  return 0;
+}
+
+static int handle_udp_9191(struct buffer &buf, chanend ctrl, unsigned size)
+{
   return 0;
 }
 
@@ -397,11 +425,13 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
     //printintln(buf.readpos);
     //printintln(size);
     //printhexln(buf.buf[buf.readpos]);
-    if (is_broadcast(buf) || is_mac(buf))
+    if (is_mac_broadcast(buf) || is_mac(buf))
     {
       /* Deal with whatever type of frame we have */
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
       else if (handle_icmp_echo(buf,ctrl,size));
+      else if (handle_udp_tftp(buf,ctrl,size));
+      else if (handle_udp_9191(buf,ctrl,size));
     }
     buf.readpos = (buf.readpos + (size>>2) + ((size & 3) != 0)) & (BUFFER_WORDS-1);
     ll <: size;

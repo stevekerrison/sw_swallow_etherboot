@@ -30,10 +30,17 @@ struct mii_rx mrx = {
 int main(void)
 {
   chan txapp, rxapp;
-  struct ipconfig cfg = { {0x0022975b,0x00010000}, {192,168,128,3}};
+  struct ipconfig cfg = { {0x0022975b,0x00010000}, {192,168,128,3}, {255,255,255,0}};
   xscope_register(0);
   xscope_config_io(XSCOPE_IO_BASIC);
   printstrln("Let the games begin...");
-  swallow_ethernet(cfg,mtx,mrx,txapp,rxapp);
+  par
+  {
+    swallow_ethernet(cfg,mtx,mrx,txapp,rxapp);
+    /*{while(1);};
+    {while(1);};
+    {while(1);};
+    {while(1);};*/
+  }
   return 0;
 }
