@@ -66,11 +66,11 @@ data.
 
 The UDP payload format is as follows:
 
-+======================================================================================================================+
-| 16-bits |  16-bits   |    8-bits  | 8-bits |  16-bits   |    8-bits  | 8-bits   | 8-bits | 24-bits | n-bits | 16-bits|
-+---------|------------|------------|--------|------------|------------|----------|--------|---------|--------|--------+
-| 0xda7a  | Dest. Node | Dest. Chan |  0x02  | Rtn. Node  |  Rtn. Chan | Rtn Flag | Format | Length  |  Data  | Tail   |
-+======================================================================================================================+
++================================================================================================================================+
+| 16-bits |  16-bits   |    8-bits  | 8-bits |  16-bits   |    8-bits  | 8-bits   | 5-bits |  3-bits | 24-bits | n-bits | 16-bits|
++---------|------------|------------|--------|------------|------------|----------|--------|---------|---------|--------|--------+
+| 0xda7a  | Dest. Node | Dest. Chan |  0x02  | Rtn. Node  |  Rtn. Chan | Rtn Flag | Proto  |  Format | Length  |  Data  | Tail   |
++================================================================================================================================+
 
 0xda7a (data) : A header to identify this packet and improve alignment of the data once it's in the grid.
 Dest. Node: The logical node ID of the destination core. This will be translated into the actual node ID, so nodes
@@ -78,9 +78,14 @@ Dest. Node: The logical node ID of the destination core. This will be translated
 Dest. Chan: The chanend to communicate to followed by 0x02 to represent a channel resource
 Rtn. Node: The logical node ID to which the destination to should respond.
 Rtn. Chan: The chanend to which the destination should respond.
-Rtn Flag: If 0x01 then Rtn. Node and Rt. Chan are transmitted. If 0x00 then the Ethernet board's receiver channel is
- used instead. If 0x02 then the ethernet's sender channel end is used and a handshake is performed at the beginning.
- All other values are invalid.
+Rtn Flag: If 0x02 then Rtn. Node and Rt. Chan are transmitted. If 0x00 then the Ethernet board's receiver channel is
+ used instead. If 0x01 then the ethernet's sender channel end is used.
+Proto: 0x0: Do no control token send/receiving except for those in the tail.
+  0x1: Transaction style control tokens - synchronisation at the beginning and end of the payload.
+  0x2: Standard control tokens - One per transfer (slow, but avoids tieing up network routes for long).
+  0x3: Synchronisation at beginning, but just an outbound PAUSE token at the end of payload
+  The tokens in Tail will always be sent before the final synchronisation if Proto requires it. If Rtn Flag is non-zero,
+  then Proto should be zero, lest deadlock occur.
 Format: 0x1 means single-token INT/OUTT instructions are used, 0x4 means 4-byte IN/OUT instructions are used.
 Length: Format * Length = Number of bytes in Data section
 Data: The payload to send.

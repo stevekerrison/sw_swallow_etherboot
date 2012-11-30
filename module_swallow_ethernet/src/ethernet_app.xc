@@ -414,7 +414,7 @@ static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
 
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
-  unsigned dst, rtn, len, format;
+  unsigned dst, rtn, len, format, rtflag, proto;
   if (udp_len(buf) < 16)
   {
     //Malformed prologue
@@ -422,8 +422,11 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   }
   dst = byterev(buf.buf[buffer_offset(buf.readpos,11)]);
   rtn = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
+  rtflag = rtn & 0xff;
   len = byterev(buf.buf[buffer_offset(buf.readpos,13)]);
   format = len >> 24;
+  format &= 0x7;
+  proto = format >> 3;
   len &= 0x00ffffff;
   printstr("Destination: ");
   printhexln(dst);
@@ -439,7 +442,44 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
     //Less data expected than the packet contains!
     return 0;
   }
-  printstrln("YAY");
+  if (rtflag && proto)
+  {
+    return 0;
+  }
+  setDestination(app,dst);
+  switch (rtflag)
+  {
+    case 0:
+      streamOutWord(app,app);
+      break;
+    case 1:
+      //TODO
+      break;
+    default:
+      streamOutWord(app,rtn);
+      break;
+  }
+  if (proto & 0x3)
+  {
+    outct(app,XS1_CT_END);
+    chkct(app,XS1_CT_END);
+  }
+  if (format == 0x1)
+  {
+    for (int i = 0; i < len * format; i += 1)
+    {
+      char b = buffer_get_byte(buf.buf,buf.readpos,56+i);
+      streamOutByte(app,b);
+    }
+  }
+  else if (format == 0x4)
+  {
+    for (int i = 0; i < len * format; i += 1)
+    {
+      streamOutWord(app,byterev(buf.buf[buffer_offset(buf.readpos,14+i)]));
+    }
+  }
+  
 }
 
 
