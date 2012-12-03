@@ -209,10 +209,119 @@ static void make_room(chanend ll, struct buffer &buf, unsigned &waiting, unsigne
   return;
 }
 
+#pragma select handler
+static void app_tx_server(streaming chanend app, chanend ll, struct buffer &buf, unsigned &waiting, unsigned &hasRoom)
+{
+  unsigned format, len, words, dst, size;
+  startTransactionServer(app,dst,format,len);
+  size = 14 + 20 + 8 + (len * format);
+  words = (size>>2)+((size & 3) != 0);
+  /*printstrln("SIZE: ");
+  printintln(size);*/
+  make_room(ll,buf,waiting,hasRoom,words);
+  buf.slots_used++;
+  buf.free -= words;
+  buf.sizes[buf.sizeposhd].words = words;
+  buf.sizes[buf.sizeposhd].bytes = size;
+  buffer_incsizepos(buf.sizeposhd,1);
+  for (int i = 0; i < 8; i += 1)
+  {
+    buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
+  }
+  if (format == 4)
+  {
+    unsigned word;
+    for (int i = 0; i < len; i += 1)
+    {
+      streamInWord(app,word);
+      buf.buf[buffer_offset(buf.writepos,11+i)] = word;
+      //printhexln(word);
+    }
+  }
+  else if (format == 1)
+  {
+    unsigned b;
+    for (int i = 0; i < len; i += 1)
+    {
+      streamInByte(app,b);
+    }
+  }
+  endTransactionServer(app);
+  for (int i = 1; i < 8; i += 1)
+  {
+    buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
+  }
+  buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
+  buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
+  buffer_set_byte(buf.buf,buf.writepos,23,0x11);
+  buffer_set_byte(buf.buf,buf.writepos,16,(size - 10) >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,17,(size - 10) & 0xff);
+  buffer_set_byte(buf.buf,buf.writepos,18,0);
+  buffer_set_byte(buf.buf,buf.writepos,19,0);
+  ip_build_checksum(buf);
+  buffer_set_byte(buf.buf,buf.writepos,34,0x5b);
+  buffer_set_byte(buf.buf,buf.writepos,35,0x5b);
+  buffer_set_byte(buf.buf,buf.writepos,36,0x5b);
+  buffer_set_byte(buf.buf,buf.writepos,37,0x5b);
+  buffer_set_byte(buf.buf,buf.writepos,38,(size - 34) >> 8);
+  buffer_set_byte(buf.buf,buf.writepos,39,(size - 34) & 0xff);
+  buf.buf[buffer_offset(buf.writepos,10)] = 0x7ada0000;
+  buffer_incpos(buf.writepos,words);
+  if (waiting && size)
+  {
+    buffer_incsizepos(buf.sizepostl,1);
+    ll <: size;
+  }
+  return;
+}
+
+#pragma select handler
+static void app_tx_ctrl(chanend ctrl, chanend ll, struct buffer &buf, unsigned &waiting, unsigned &hasRoom)
+{
+  unsigned words, cval, size;
+  ctrl :> cval;
+  switch (cval)
+  {
+    case 1:
+      size = 42;
+      break;
+    case 2:
+      ctrl :> size;
+      break;
+    default:
+      size = 0;
+      break;
+  }
+  words = (size>>2)+((size & 3) != 0);
+  make_room(ll,buf,waiting,hasRoom,words);
+  buf.slots_used++;
+  buf.free -= words;
+  switch (cval)
+  {
+    case 1:
+      /* ARP response! */
+      build_arp_out(buf,ctrl,size);
+      break;
+    case 2:
+      /* ICMP response */
+      build_icmp_echo(buf,ctrl,size);
+      break;
+    default:
+      /* Nothing to do! */
+      break;
+  }
+  if (waiting && size)
+  {
+    buffer_incsizepos(buf.sizepostl,1);
+    ll <: size;
+  }
+  return;
+}
+      
+
 static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanend ctrl)
 {
-  unsigned cval, r = getLocalChanendId(ll);
-  unsigned hasRoom = buf.free >= BUFFER_MINFREE, waiting = 0, llval, size;
+  unsigned hasRoom = buf.free >= BUFFER_MINFREE, waiting = 0;
   while (1)
   {
     #pragma ordered
@@ -221,110 +330,10 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
       case lltx_handler(ll,buf,waiting):
         assert(hasRoom || buf.slots_used > 0);
         break;
-      case ctrl :> cval:
-      {
-        unsigned words;
-        switch (cval)
-        {
-          case 1:
-            size = 42;
-            break;
-          case 2:
-            ctrl :> size;
-            break;
-          default:
-            size = 0;
-            break;
-        }
-        words = (size>>2)+((size & 3) != 0);
-        make_room(ll,buf,waiting,hasRoom,words);
-        buf.slots_used++;
-        buf.free -= words;
-        switch (cval)
-        {
-          case 1:
-            /* ARP response! */
-            build_arp_out(buf,ctrl,size);
-            break;
-          case 2:
-            /* ICMP response */
-            build_icmp_echo(buf,ctrl,size);
-            break;
-          default:
-            /* Nothing to do! */
-            break;
-        }
-        if (waiting && size)
-        {
-          buffer_incsizepos(buf.sizepostl,1);
-          ll <: size;
-        }
+      case app_tx_ctrl(ctrl,ll,buf,waiting,hasRoom):
         break;
-      }
-      case app :> cval:
-      {
-        unsigned format, len, words;
-        startTransactionServer(app,cval,format,len);
-        size = 14 + 20 + 8 + (len * format);
-        words = (size>>2)+((size & 3) != 0);
-        /*printstrln("SIZE: ");
-        printintln(size);*/
-        make_room(ll,buf,waiting,hasRoom,words);
-        buf.slots_used++;
-        buf.free -= words;
-        buf.sizes[buf.sizeposhd].words = words;
-        buf.sizes[buf.sizeposhd].bytes = size;
-        buffer_incsizepos(buf.sizeposhd,1);
-        for (int i = 0; i < 8; i += 1)
-        {
-          buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
-        }
-        if (format == 4)
-        {
-          unsigned word;
-          for (int i = 0; i < len; i += 1)
-          {
-            streamInWord(app,word);
-            buf.buf[buffer_offset(buf.writepos,11+i)] = word;
-            //printhexln(word);
-          }
-        }
-        else if (format == 1)
-        {
-          unsigned b;
-          for (int i = 0; i < len; i += 1)
-          {
-            streamInByte(app,b);
-          }
-        }
-        endTransactionServer(app);
-        for (int i = 1; i < 8; i += 1)
-        {
-          buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
-        }
-        buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
-        buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
-        buffer_set_byte(buf.buf,buf.writepos,23,0x11);
-        buffer_set_byte(buf.buf,buf.writepos,16,(size - 10) >> 8);
-        buffer_set_byte(buf.buf,buf.writepos,17,(size - 10) & 0xff);
-        buffer_set_byte(buf.buf,buf.writepos,18,0);
-        buffer_set_byte(buf.buf,buf.writepos,19,0);
-        ip_build_checksum(buf);
-        buffer_set_byte(buf.buf,buf.writepos,34,0x5b);
-        buffer_set_byte(buf.buf,buf.writepos,35,0x5b);
-        buffer_set_byte(buf.buf,buf.writepos,36,0x5b);
-        buffer_set_byte(buf.buf,buf.writepos,37,0x5b);
-        buffer_set_byte(buf.buf,buf.writepos,38,(size - 34) >> 8);
-        buffer_set_byte(buf.buf,buf.writepos,39,(size - 34) & 0xff);
-        buf.buf[buffer_offset(buf.writepos,10)] = 0x7ada0000;
-        buffer_incpos(buf.writepos,words);
-        if (waiting && size)
-        {
-          buffer_incsizepos(buf.sizepostl,1);
-          ll <: size;
-        }
+      case app_tx_server(app,ll,buf,waiting,hasRoom):
         break;
-      }
     }
   }
   return;
@@ -458,10 +467,10 @@ static int udp_dst_port(struct buffer &buf)
   return byterev(buf.buf[buffer_offset(buf.readpos,9)]) >> 16;
 }
 
-static int udp_src_port(struct buffer &buf)
+/*static int udp_src_port(struct buffer &buf)
 {
   return byterev(buf.buf[buffer_offset(buf.readpos,8)]) & 0xffff;
-}
+}*/
 
 static int udp_len(struct buffer &buf)
 {
@@ -487,7 +496,7 @@ static inline int is_ipv4(struct buffer &buf)
 
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
-  unsigned dst, rtn, len, format, rtflag, proto, fmtp;
+  unsigned dst, len, format;
   if (udp_len(buf) < 10)
   {
     //Malformed prologue
@@ -497,20 +506,17 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   len = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
   format = len >> 24;
   len &= 0x00ffffff;
-  /*printstr("Destination: ");
-  printhexln(dst);
-  printstr("Format: ");
-  printhexln(format);*/
-  printstr("Length: ");
-  printintln(len);
-  /*printintln(udp_len(buf));*/
-  if (len * format + 10 < udp_len(buf))
+  if (len > 0 && len * format + 10 < udp_len(buf))
   {
     printstrln("ERR NERR");
     //Less data expected than the packet contains!
     return 0;
   }
   startTransactionClient(app,dst,format,len);
+  if (len == 0)
+  {
+    len = udp_len(buf) - 10;
+  }
   if (format == 0x1)
   {
     for (int i = 0; i < len; i += 1)
@@ -527,6 +533,7 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
     }
   }
   endTransactionClient(app);
+  return 1;
 }
 
 static int handle_udp_lb(struct buffer &buf, chanend app, unsigned size)
@@ -547,6 +554,7 @@ static int handle_udp_lb(struct buffer &buf, chanend app, unsigned size)
     streamOutWord(app,buf.buf[buffer_offset(buf.readpos,11+i)]);
   }
   endTransactionClient(app);
+  return 1;
 }
 
 static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
