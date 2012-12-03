@@ -130,6 +130,9 @@ static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   unsigned datalen, icmp_checksum;
   char b;
   int i;
+  buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
+  buf.sizes[buf.sizeposhd].bytes = size;
+  buffer_incsizepos(buf.sizeposhd,1);
   slave
   {
     for (i = 38; i < 42; i += 1)
