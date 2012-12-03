@@ -14,7 +14,7 @@
 #include "buffer.h"
 
 /* Flaunt parallel usage rules */
-void ethernet_app(unsigned txbuf, unsigned rxbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl)
+void ethernet_app(unsigned txbuf, unsigned rxbuf, chanend txapp, unsigned rxapp, chanend txctrl, chanend rxctrl)
 {
   return ethernet_app_xc((struct buffer *)txbuf,(struct buffer *)rxbuf,txapp,rxapp,txctrl,rxctrl);
 }

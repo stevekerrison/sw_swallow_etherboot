@@ -32,7 +32,7 @@ static void build_header_from_arp(struct buffer &buf)
   buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);*/
   arpc.header[18] = 0;
   arpc.header[19] = 0;
-  (arpc.header,unsigned[])[5] = 0x01000040 | (0x40 << 16);
+  (arpc.header,unsigned[])[5] = 0x00400000;
   (arpc.header,unsigned[])[6] = 0;
   arpc.header[26] = cfg.ip[2];
   arpc.header[27] = cfg.ip[3];
@@ -49,7 +49,7 @@ static void build_header_from_arp(struct buffer &buf)
     {
       ip_checksum += arpc.header[i] | (arpc.header[i+1] << 8);
     }
-    for (i = 18; i < 24; i += 2)
+    for (i = 18; i < 22; i += 2)
     {
       ip_checksum += arpc.header[i] | (arpc.header[i+1] << 8);
     }
@@ -67,6 +67,7 @@ static inline void ip_build_checksum(struct buffer &buf)
 {
   unsigned ip_checksum = arpc.pre_checksum;
   ip_checksum += buffer_get_byte(buf.buf,buf.writepos,16) | (buffer_get_byte(buf.buf,buf.writepos,17) << 8);
+  ip_checksum += buffer_get_byte(buf.buf,buf.writepos,22) | (buffer_get_byte(buf.buf,buf.writepos,23) << 8);
   while (ip_checksum >> 16)
   {
     ip_checksum = (ip_checksum & 0xffff) + (ip_checksum >> 16);
@@ -150,6 +151,7 @@ static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   }
   buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
   buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
+  buffer_set_byte(buf.buf,buf.writepos,23,0x1);
   buffer_set_byte(buf.buf,buf.writepos,16,(size-10) >> 8);
   buffer_set_byte(buf.buf,buf.writepos,17,(size-10) & 0xff);
   buffer_set_byte(buf.buf,buf.writepos,18,0);
@@ -166,10 +168,11 @@ static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   return;
 }
 
-static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
+static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanend ctrl)
 {
   unsigned cval, r = getLocalChanendId(ll);
   unsigned hasRoom = buf.free >= BUFFER_MINFREE, waiting = 0, llval, size;
+  asm("mov %0,%1":"=r"(cval):"r"(app));
   while (1)
   {
     #pragma ordered
@@ -253,12 +256,106 @@ static void app_tx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
         }
         break;
       case app :> cval:
-        if (cval == 0)
+      {
+        unsigned fmtp, format, proto, len;
+        printstrln("INCOMING!");
+        streamSetDestination(app,cval);
+        printstr("FROM: ");
+        printhexln(cval);
+        streamInByte(app,fmtp);
+        printstr("PROTO/FMT: ");
+        printhexln(fmtp);
+        format = fmtp & 0x7;
+        proto = fmtp >> 3;
+        streamInWord(app,len);
+        printstr("LEN: ");
+        printhexln(len);
+        size = 44 + (len * format);
+        hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
+        while (!hasRoom)
         {
-          ctrl <: r;
-          ctrl :> cval;
+          printstrln("TX FULL");
+          ll :> llval;
+          if (llval > 0)
+          {
+            buf.free += (llval>>2)+((llval & 3) != 0);
+            buf.slots_used--;
+            assert(buf.free >= 0 && buf.slots_used >= 0);
+          }
+          if (buf.slots_used > 0)
+          {
+            unsigned size = buf.sizes[buf.sizepostl].bytes;
+            buffer_incsizepos(buf.sizepostl,1);
+            ll <: size;
+            waiting = 0;
+          }
+          hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
+          assert(hasRoom || buf.slots_used > 0);
+        }
+        buf.slots_used++;
+        buf.free -= (size>>2)+((size & 3) != 0);
+        if (proto & 0x3)
+        {
+          schkct(app,XS1_CT_END);
+          soutct(app,XS1_CT_END);
+        }
+        for (int i = 0; i < 8; i += 1)
+        {
+          buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
+        }
+        if (format == 4)
+        {
+          unsigned word;
+          for (int i = 0; i < len; i += 1)
+          {
+            streamInWord(app,word);
+            buf.buf[buffer_offset(buf.writepos,11+i)] = word;
+          }
+        }
+        else if (format == 1)
+        {
+          unsigned b;
+          for (int i = 0; i < len; i += 1)
+          {
+            streamInByte(app,b);
+          }
+        }
+        if (proto == 0x1)
+        {
+          schkct(app,XS1_CT_END);
+          soutct(app,XS1_CT_END);
+        }
+        else if (proto == 0x3)
+        {
+          soutct(app,XS1_CT_PAUSE);
+        }
+        for (int i = 1; i < 8; i += 1)
+        {
+          buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
+        }
+        buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
+        buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
+        buffer_set_byte(buf.buf,buf.writepos,23,0x11);
+        buffer_set_byte(buf.buf,buf.writepos,16,((len * format) + 30) >> 8);
+        buffer_set_byte(buf.buf,buf.writepos,17,((len * format) + 30) & 0xff);
+        buffer_set_byte(buf.buf,buf.writepos,18,0);
+        buffer_set_byte(buf.buf,buf.writepos,19,0);
+        ip_build_checksum(buf);
+        buffer_set_byte(buf.buf,buf.writepos,34,0x5b);
+        buffer_set_byte(buf.buf,buf.writepos,35,0x5b);
+        buffer_set_byte(buf.buf,buf.writepos,36,0x5b);
+        buffer_set_byte(buf.buf,buf.writepos,37,0x5b);
+        buffer_set_byte(buf.buf,buf.writepos,38,(len * format + 10) >> 8);
+        buffer_set_byte(buf.buf,buf.writepos,39,(len * format + 10) & 0xff);
+        buf.buf[buffer_offset(buf.writepos,10)] = 0x7ada0000;
+        buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
+        if (waiting && size)
+        {
+          buffer_incsizepos(buf.sizepostl,1);
+          ll <: size;
         }
         break;
+      }
     }
   }
   return;
@@ -414,7 +511,7 @@ static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
 
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
-  unsigned dst, rtn, len, format, rtflag, proto;
+  unsigned dst, rtn, len, format, rtflag, proto, fmtp;
   if (udp_len(buf) < 16)
   {
     //Malformed prologue
@@ -424,9 +521,9 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   rtn = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
   rtflag = rtn & 0xff;
   len = byterev(buf.buf[buffer_offset(buf.readpos,13)]);
-  format = len >> 24;
-  format &= 0x7;
-  proto = format >> 3;
+  fmtp = len >> 24;
+  format = fmtp & 0x7;
+  proto = fmtp >> 3;
   len &= 0x00ffffff;
   printstr("Destination: ");
   printhexln(dst);
@@ -459,6 +556,8 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
       streamOutWord(app,rtn);
       break;
   }
+  streamOutByte(app,fmtp);
+  streamOutWord(app,len);
   if (proto & 0x3)
   {
     outct(app,XS1_CT_END);
@@ -466,7 +565,7 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   }
   if (format == 0x1)
   {
-    for (int i = 0; i < len * format; i += 1)
+    for (int i = 0; i < len; i += 1)
     {
       char b = buffer_get_byte(buf.buf,buf.readpos,56+i);
       streamOutByte(app,b);
@@ -474,12 +573,32 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   }
   else if (format == 0x4)
   {
-    for (int i = 0; i < len * format; i += 1)
+    for (int i = 0; i < len; i += 1)
     {
       streamOutWord(app,byterev(buf.buf[buffer_offset(buf.readpos,14+i)]));
     }
   }
-  
+  {
+    char b = buffer_get_byte(buf.buf,buf.readpos,56 + len * format);
+    if (b != 0)
+    {
+      outct(app,b);
+    }
+    b = buffer_get_byte(buf.buf,buf.readpos,56 + len * format + 1);
+    if (b != 0)
+    {
+      chkct(app,b);
+    }
+  }
+  if (proto == 0x1)
+  {
+    outct(app,XS1_CT_END);
+    chkct(app,XS1_CT_END);
+  }
+  else if (proto == 0x3)
+  {
+    outct(app,XS1_CT_PAUSE);
+  }
 }
 
 
@@ -527,7 +646,7 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   return;
 }
 
-void ethernet_app_xc(struct buffer &txbuf, struct buffer &rxbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl)
+void ethernet_app_xc(struct buffer &txbuf, struct buffer &rxbuf, streaming chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl)
 {
   chan appctrl;
   par

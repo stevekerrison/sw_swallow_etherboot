@@ -14,9 +14,12 @@
 #include <xccompat.h>
 #include "ptr.h"
 #include "buffer.h"
+#ifndef __XC__
+  #define streaming
+#endif
 
 void ethernet_app(unsigned rxbuf, unsigned txbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
-void ethernet_app_xc(struct buffer PTREF txbuf, struct buffer PTREF rxbuf, chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
+void ethernet_app_xc(struct buffer PTREF txbuf, struct buffer PTREF rxbuf, streaming chanend txapp, chanend rxapp, chanend txctrl, chanend rxctrl);
 
 
 #endif //ETHERNET_APP_H
