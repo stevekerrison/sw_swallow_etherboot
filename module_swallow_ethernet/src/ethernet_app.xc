@@ -421,11 +421,6 @@ static int handle_arp(struct buffer &buf, chanend ctrl)
 static int handle_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
 {
   unsigned len;
-  if (buf.buf[buffer_offset(buf.readpos,3)] != 0x00450008)
-  {
-    //Invalid et_ver_hdrl_tos
-    return 0;
-  }
   if ((buf.buf[buffer_offset(buf.readpos,8)] >> 16) != 0x0008)
   {
     //Invalid type code
@@ -483,6 +478,11 @@ static inline int ip_fragmented(struct buffer &buf)
   return ((buffer_get_byte(buf.buf,buf.readpos,20) >> 5) & 1) || 
     (buffer_get_byte(buf.buf,buf.readpos,20) & 0x1f) ||
     buffer_get_byte(buf.buf,buf.readpos,21);
+}
+
+static inline int is_ipv4(struct buffer &buf)
+{
+  return (buf.buf[buffer_offset(buf.readpos,3)] == 0x00450008);
 }
 
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
@@ -560,7 +560,7 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
     {
       /* Deal with whatever type of frame we have */
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
-      else if (!ip_fragmented(buf) && is_my_ip(buf) && ip_checksum_valid(buf))
+      else if (is_ipv4(buf) && !ip_fragmented(buf) && is_my_ip(buf) && ip_checksum_valid(buf))
       {
         switch (buffer_get_byte(buf.buf,buf.readpos,23))
         {
