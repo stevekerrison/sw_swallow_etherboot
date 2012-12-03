@@ -478,6 +478,13 @@ static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
   return 0;
 }
 
+static inline int ip_fragmented(struct buffer &buf)
+{
+  return ((buffer_get_byte(buf.buf,buf.readpos,20) >> 5) & 1) || 
+    (buffer_get_byte(buf.buf,buf.readpos,20) & 0x1f) ||
+    buffer_get_byte(buf.buf,buf.readpos,21);
+}
+
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
   unsigned dst, rtn, len, format, rtflag, proto, fmtp;
@@ -553,7 +560,7 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
     {
       /* Deal with whatever type of frame we have */
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
-      else if (is_my_ip(buf) && ip_checksum_valid(buf))
+      else if (!ip_fragmented(buf) && is_my_ip(buf) && ip_checksum_valid(buf))
       {
         switch (buffer_get_byte(buf.buf,buf.readpos,23))
         {
