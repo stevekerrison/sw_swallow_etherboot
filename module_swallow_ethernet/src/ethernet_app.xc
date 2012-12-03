@@ -576,13 +576,10 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           {
             handle_udp_5b5b(buf,app,size);
           }
-#define LOOPBACK_TEST
-#ifdef LOOPBACK_TEST
-          else
+          else if (udp_dst_port(buf) == 0x1b1b)
           {
             handle_udp_lb(buf,app,size);
           }
-#endif
           break;
         default:
           break;
