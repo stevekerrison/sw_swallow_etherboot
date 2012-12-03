@@ -260,8 +260,8 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         unsigned format, len;
         startTransactionServer(app,cval,format,len);
         size = 14 + 20 + 8 + (len * format);
-        /* printstrln("SIZE: ");
-        printintln(size); */
+        /*printstrln("SIZE: ");
+        printintln(size);*/
         hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
         while (!hasRoom)
         {
@@ -285,6 +285,9 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         }
         buf.slots_used++;
         buf.free -= (size>>2)+((size & 3) != 0);
+        buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
+        buf.sizes[buf.sizeposhd].bytes = size;
+        buffer_incsizepos(buf.sizeposhd,1);
         for (int i = 0; i < 8; i += 1)
         {
           buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
@@ -491,7 +494,6 @@ static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
   unsigned dst, rtn, len, format, rtflag, proto, fmtp;
-  return 0;
   if (udp_len(buf) < 10)
   {
     //Malformed prologue
@@ -504,10 +506,10 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   /*printstr("Destination: ");
   printhexln(dst);
   printstr("Format: ");
-  printhexln(format);
+  printhexln(format);*/
   printstr("Length: ");
   printintln(len);
-  printintln(udp_len(buf));*/
+  /*printintln(udp_len(buf));*/
   if (len * format + 10 < udp_len(buf))
   {
     printstrln("ERR NERR");
@@ -533,7 +535,25 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   endTransactionClient(app);
 }
 
-
+static int handle_udp_lb(struct buffer &buf, chanend app, unsigned size)
+{
+  unsigned dlen, flags = buffer_get_byte(buf.buf,buf.readpos,20) >> 5;
+  if (flags == 0x1)
+  {
+    dlen = 360;
+  }
+  else
+  {
+    dlen = udp_len(buf) / 4;
+  }
+  printintln(dlen);
+  startTransactionClient(app,0x00000102,4,dlen);
+  for (int i = 0; i < dlen; i += 1)
+  {
+    streamOutWord(app,buf.buf[buffer_offset(buf.readpos,11+i)]);
+  }
+  endTransactionClient(app);
+}
 
 static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
 {
@@ -562,6 +582,13 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
           {
             handle_udp_5b5b(buf,app,size);
           }
+#define LOOPBACK_TEST
+#ifdef LOOPBACK_TEST
+          else
+          {
+            handle_udp_lb(buf,app,size);
+          }
+#endif
           break;
         default:
           break;
