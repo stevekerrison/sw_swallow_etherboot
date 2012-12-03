@@ -84,10 +84,10 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   if (~crc)
   {
-    printstr("DISCARD ");
+    /*printstr("DISCARD ");
     printhex(crc);
     printchar(' ');
-    printintln(taillen);
+    printintln(taillen);*/
     return -1;
   }
   size = (wp - start) & mask;
@@ -148,7 +148,7 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 			    break;
         }
         size = rx(buf,mii,ctrl);
-        if (size && waiting)
+        if (size > 0 && waiting)
         {
           ctrl <: size;
           buffer_incsizepos(buf.sizepostl,1);

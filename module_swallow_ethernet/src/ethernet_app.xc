@@ -257,20 +257,11 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         break;
       case app :> cval:
       {
-        unsigned fmtp, format, proto, len;
-        printstrln("INCOMING!");
-        streamSetDestination(app,cval);
-        printstr("FROM: ");
-        printhexln(cval);
-        streamInByte(app,fmtp);
-        printstr("PROTO/FMT: ");
-        printhexln(fmtp);
-        format = fmtp & 0x7;
-        proto = fmtp >> 3;
-        streamInWord(app,len);
-        printstr("LEN: ");
-        printhexln(len);
-        size = 44 + (len * format);
+        unsigned format, len;
+        startTransactionServer(app,cval,format,len);
+        size = 14 + 20 + 8 + (len * format);
+        /* printstrln("SIZE: ");
+        printintln(size); */
         hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
         while (!hasRoom)
         {
@@ -294,11 +285,6 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         }
         buf.slots_used++;
         buf.free -= (size>>2)+((size & 3) != 0);
-        if (proto & 0x3)
-        {
-          schkct(app,XS1_CT_END);
-          soutct(app,XS1_CT_END);
-        }
         for (int i = 0; i < 8; i += 1)
         {
           buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
@@ -310,6 +296,7 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
           {
             streamInWord(app,word);
             buf.buf[buffer_offset(buf.writepos,11+i)] = word;
+            //printhexln(word);
           }
         }
         else if (format == 1)
@@ -320,15 +307,7 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
             streamInByte(app,b);
           }
         }
-        if (proto == 0x1)
-        {
-          schkct(app,XS1_CT_END);
-          soutct(app,XS1_CT_END);
-        }
-        else if (proto == 0x3)
-        {
-          soutct(app,XS1_CT_PAUSE);
-        }
+        endTransactionServer(app);
         for (int i = 1; i < 8; i += 1)
         {
           buf.buf[buffer_offset(buf.writepos,i)] = (arpc.header,unsigned[])[i];
@@ -336,8 +315,8 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         buffer_set_byte(buf.buf,buf.writepos,32,arpc.header[32]);
         buffer_set_byte(buf.buf,buf.writepos,33,arpc.header[33]);
         buffer_set_byte(buf.buf,buf.writepos,23,0x11);
-        buffer_set_byte(buf.buf,buf.writepos,16,((len * format) + 30) >> 8);
-        buffer_set_byte(buf.buf,buf.writepos,17,((len * format) + 30) & 0xff);
+        buffer_set_byte(buf.buf,buf.writepos,16,(size - 10) >> 8);
+        buffer_set_byte(buf.buf,buf.writepos,17,(size - 10) & 0xff);
         buffer_set_byte(buf.buf,buf.writepos,18,0);
         buffer_set_byte(buf.buf,buf.writepos,19,0);
         ip_build_checksum(buf);
@@ -345,8 +324,8 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         buffer_set_byte(buf.buf,buf.writepos,35,0x5b);
         buffer_set_byte(buf.buf,buf.writepos,36,0x5b);
         buffer_set_byte(buf.buf,buf.writepos,37,0x5b);
-        buffer_set_byte(buf.buf,buf.writepos,38,(len * format + 10) >> 8);
-        buffer_set_byte(buf.buf,buf.writepos,39,(len * format + 10) & 0xff);
+        buffer_set_byte(buf.buf,buf.writepos,38,(size - 34) >> 8);
+        buffer_set_byte(buf.buf,buf.writepos,39,(size - 34) & 0xff);
         buf.buf[buffer_offset(buf.writepos,10)] = 0x7ada0000;
         buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
         if (waiting && size)
@@ -512,62 +491,35 @@ static int handle_udp_tftp(struct buffer &buf, chanend app, unsigned size)
 static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 {
   unsigned dst, rtn, len, format, rtflag, proto, fmtp;
-  if (udp_len(buf) < 16)
+  return 0;
+  if (udp_len(buf) < 10)
   {
     //Malformed prologue
     return 0;
   }
   dst = byterev(buf.buf[buffer_offset(buf.readpos,11)]);
-  rtn = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
-  rtflag = rtn & 0xff;
-  len = byterev(buf.buf[buffer_offset(buf.readpos,13)]);
-  fmtp = len >> 24;
-  format = fmtp & 0x7;
-  proto = fmtp >> 3;
+  len = byterev(buf.buf[buffer_offset(buf.readpos,12)]);
+  format = len >> 24;
   len &= 0x00ffffff;
-  printstr("Destination: ");
+  /*printstr("Destination: ");
   printhexln(dst);
-  printstr("Return path: ");
-  printhexln(rtn);
   printstr("Format: ");
   printhexln(format);
   printstr("Length: ");
   printintln(len);
-  printintln(udp_len(buf));
-  if (len * format + 16 < udp_len(buf))
+  printintln(udp_len(buf));*/
+  if (len * format + 10 < udp_len(buf))
   {
+    printstrln("ERR NERR");
     //Less data expected than the packet contains!
     return 0;
   }
-  if (rtflag && proto)
-  {
-    return 0;
-  }
-  setDestination(app,dst);
-  switch (rtflag)
-  {
-    case 0:
-      streamOutWord(app,app);
-      break;
-    case 1:
-      //TODO
-      break;
-    default:
-      streamOutWord(app,rtn);
-      break;
-  }
-  streamOutByte(app,fmtp);
-  streamOutWord(app,len);
-  if (proto & 0x3)
-  {
-    outct(app,XS1_CT_END);
-    chkct(app,XS1_CT_END);
-  }
+  startTransactionClient(app,dst,format,len);
   if (format == 0x1)
   {
     for (int i = 0; i < len; i += 1)
     {
-      char b = buffer_get_byte(buf.buf,buf.readpos,56+i);
+      char b = buffer_get_byte(buf.buf,buf.readpos,52+i);
       streamOutByte(app,b);
     }
   }
@@ -575,30 +527,10 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   {
     for (int i = 0; i < len; i += 1)
     {
-      streamOutWord(app,byterev(buf.buf[buffer_offset(buf.readpos,14+i)]));
+      streamOutWord(app,buf.buf[buffer_offset(buf.readpos,13+i)]);
     }
   }
-  {
-    char b = buffer_get_byte(buf.buf,buf.readpos,56 + len * format);
-    if (b != 0)
-    {
-      outct(app,b);
-    }
-    b = buffer_get_byte(buf.buf,buf.readpos,56 + len * format + 1);
-    if (b != 0)
-    {
-      chkct(app,b);
-    }
-  }
-  if (proto == 0x1)
-  {
-    outct(app,XS1_CT_END);
-    chkct(app,XS1_CT_END);
-  }
-  else if (proto == 0x3)
-  {
-    outct(app,XS1_CT_PAUSE);
-  }
+  endTransactionClient(app);
 }
 
 
@@ -608,9 +540,9 @@ static void app_rx(struct buffer &buf, chanend app, chanend ll, chanend ctrl)
   int size;
   ll <: 0;
   ll :> size;
-  while(size > 0)
+  while(1)
   {
-    if (is_mac_broadcast(buf) || is_mac(buf))
+    if (size > 60 && (is_mac_broadcast(buf) || is_mac(buf)))
     {
       /* Deal with whatever type of frame we have */
       if (handle_arp(buf,ctrl)); /* No HL interaction, just respond if necessary */
