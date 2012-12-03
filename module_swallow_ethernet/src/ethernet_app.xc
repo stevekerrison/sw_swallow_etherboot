@@ -168,38 +168,59 @@ static void build_icmp_echo(struct buffer &buf, chanend ctrl, unsigned size)
   return;
 }
 
+#pragma select handler
+static void lltx_handler(chanend ll, struct buffer &buf, unsigned &waiting)
+{
+  unsigned llval;
+  ll :> llval;
+  if (llval > 0)
+  {
+    buf.free += (llval>>2)+((llval & 3) != 0);
+    buf.slots_used--;
+    assert(buf.free >= 0 && buf.slots_used >= 0);
+  }
+  if (buf.slots_used > 0)
+  {
+    unsigned size = buf.sizes[buf.sizepostl].bytes;
+    buffer_incsizepos(buf.sizepostl,1);
+    ll <: size;
+    waiting = 0;
+  }
+  else
+  {
+    //printstrln("TX WAITING");
+    waiting = 1;
+  }
+  return;
+}
+
+static void make_room(chanend ll, struct buffer &buf, unsigned &waiting, unsigned &hasRoom, unsigned words)
+{
+  hasRoom = buf.free >= words;
+  while(!hasRoom)
+  {
+    lltx_handler(ll,buf,waiting);
+  }
+  hasRoom = buf.free >= words;
+  assert(hasRoom || buf.slots_used > 0);
+  return;
+}
+
 static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanend ctrl)
 {
   unsigned cval, r = getLocalChanendId(ll);
   unsigned hasRoom = buf.free >= BUFFER_MINFREE, waiting = 0, llval, size;
-  asm("mov %0,%1":"=r"(cval):"r"(app));
   while (1)
   {
     #pragma ordered
     select
     {
-      case ll :> llval:
-        if (llval > 0)
-        {
-          buf.free += (llval>>2)+((llval & 3) != 0);
-          buf.slots_used--;
-          assert(buf.free >= 0 && buf.slots_used >= 0);
-        }
-        if (buf.slots_used > 0)
-        {
-          unsigned size = buf.sizes[buf.sizepostl].bytes;
-          buffer_incsizepos(buf.sizepostl,1);
-          ll <: size;
-          waiting = 0;
-        }
-        else
-        {
-          //printstrln("TX WAITING");
-          waiting = 1;
-        }
+      case lltx_handler(ll,buf,waiting):
         assert(hasRoom || buf.slots_used > 0);
         break;
       case ctrl :> cval:
+      {
+        unsigned words;
         switch (cval)
         {
           case 1:
@@ -212,29 +233,10 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
             size = 0;
             break;
         }
-        hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
-        while (!hasRoom)
-        {
-          printstrln("TX FULL");
-          ll :> llval;
-          if (llval > 0)
-          {
-            buf.free += (llval>>2)+((llval & 3) != 0);
-            buf.slots_used--;
-            assert(buf.free >= 0 && buf.slots_used >= 0);
-          }
-          if (buf.slots_used > 0)
-          {
-            unsigned size = buf.sizes[buf.sizepostl].bytes;
-            buffer_incsizepos(buf.sizepostl,1);
-            ll <: size;
-            waiting = 0;
-          }
-          hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
-          assert(hasRoom || buf.slots_used > 0);
-        }
+        words = (size>>2)+((size & 3) != 0);
+        make_room(ll,buf,waiting,hasRoom,words);
         buf.slots_used++;
-        buf.free -= (size>>2)+((size & 3) != 0);
+        buf.free -= words;
         switch (cval)
         {
           case 1:
@@ -255,37 +257,19 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
           ll <: size;
         }
         break;
+      }
       case app :> cval:
       {
-        unsigned format, len;
+        unsigned format, len, words;
         startTransactionServer(app,cval,format,len);
         size = 14 + 20 + 8 + (len * format);
+        words = (size>>2)+((size & 3) != 0);
         /*printstrln("SIZE: ");
         printintln(size);*/
-        hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
-        while (!hasRoom)
-        {
-          printstrln("TX FULL");
-          ll :> llval;
-          if (llval > 0)
-          {
-            buf.free += (llval>>2)+((llval & 3) != 0);
-            buf.slots_used--;
-            assert(buf.free >= 0 && buf.slots_used >= 0);
-          }
-          if (buf.slots_used > 0)
-          {
-            unsigned size = buf.sizes[buf.sizepostl].bytes;
-            buffer_incsizepos(buf.sizepostl,1);
-            ll <: size;
-            waiting = 0;
-          }
-          hasRoom = buf.free >= (size>>2)+((size & 3) != 0);
-          assert(hasRoom || buf.slots_used > 0);
-        }
+        make_room(ll,buf,waiting,hasRoom,words);
         buf.slots_used++;
-        buf.free -= (size>>2)+((size & 3) != 0);
-        buf.sizes[buf.sizeposhd].words = (size>>2)+((size & 3) != 0);
+        buf.free -= words;
+        buf.sizes[buf.sizeposhd].words = words;
         buf.sizes[buf.sizeposhd].bytes = size;
         buffer_incsizepos(buf.sizeposhd,1);
         for (int i = 0; i < 8; i += 1)
@@ -330,7 +314,7 @@ static void app_tx(struct buffer &buf, streaming chanend app, chanend ll, chanen
         buffer_set_byte(buf.buf,buf.writepos,38,(size - 34) >> 8);
         buffer_set_byte(buf.buf,buf.writepos,39,(size - 34) & 0xff);
         buf.buf[buffer_offset(buf.writepos,10)] = 0x7ada0000;
-        buffer_incpos(buf.writepos,(size>>2)+((size & 3) != 0));
+        buffer_incpos(buf.writepos,words);
         if (waiting && size)
         {
           buffer_incsizepos(buf.sizepostl,1);
