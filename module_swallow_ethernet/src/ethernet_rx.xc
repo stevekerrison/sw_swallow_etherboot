@@ -124,8 +124,8 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
           buf.free += (ctrlval>>2)+((ctrlval & 3) != 0);
           buf.slots_used--;
           assert(buf.free >= 0 && buf.slots_used >= 0);
-          hasRoom = buf.free >= BUFFER_MINFREE;
         }
+        hasRoom = buf.free >= BUFFER_MINFREE;
         if (buf.slots_used > 0)
         {
           size = buf.sizes[buf.sizepostl].bytes;
@@ -142,7 +142,7 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
       case mii.p_mii_rxd when pinseq(0xD) :> int _:
         if (!hasRoom)
         {
-          printstrln("RXOVF");
+          //printstrln("RXOVF");
           mii.p_mii_rxdv when pinseq(0) :> int _;
 			    clearbuf(mii.p_mii_rxd);
 			    break;
@@ -152,8 +152,10 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
         {
           ctrl <: size;
           buffer_incsizepos(buf.sizepostl,1);
+          
           waiting = 0;
         }
+        hasRoom = buf.free >= BUFFER_MINFREE;
         break;
     }
   }

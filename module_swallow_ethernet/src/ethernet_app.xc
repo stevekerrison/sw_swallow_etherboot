@@ -271,6 +271,7 @@ static void app_tx_server(streaming chanend app, chanend ll, struct buffer &buf,
   {
     buffer_incsizepos(buf.sizepostl,1);
     ll <: size;
+    waiting = 0;
   }
   return;
 }
@@ -314,6 +315,7 @@ static void app_tx_ctrl(chanend ctrl, chanend ll, struct buffer &buf, unsigned &
   {
     buffer_incsizepos(buf.sizepostl,1);
     ll <: size;
+    waiting = 0;
   }
   return;
 }
@@ -508,7 +510,7 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
   len &= 0x00ffffff;
   if (len > 0 && len * format + 10 < udp_len(buf))
   {
-    printstrln("ERR NERR");
+    //printstrln("ERR NERR");
     //Less data expected than the packet contains!
     return 0;
   }
@@ -538,16 +540,8 @@ static int handle_udp_5b5b(struct buffer &buf, chanend app, unsigned size)
 
 static int handle_udp_lb(struct buffer &buf, chanend app, unsigned size)
 {
-  unsigned dlen, flags = buffer_get_byte(buf.buf,buf.readpos,20) >> 5;
-  if (flags == 0x1)
-  {
-    dlen = 360;
-  }
-  else
-  {
-    dlen = udp_len(buf) / 4;
-  }
-  printintln(dlen);
+  unsigned dlen;
+  dlen = udp_len(buf) / 4;
   startTransactionClient(app,0x00000102,4,dlen);
   for (int i = 0; i < dlen; i += 1)
   {
