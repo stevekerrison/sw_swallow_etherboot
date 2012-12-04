@@ -82,7 +82,8 @@ Data: The payload to send.
 
 The behaviour of the receiving chanend will depend on the application and the data being delivered.
 
-The data field should never be more than MTU-44 bytes in size. Inbound fragmented packets are discarded.
-If the length field is greater than MTU-44 bytes, then behaviour is undefined.
+The data field should never be more than MTU-44 bytes in size. Fragmented packets are not supported.
+If the length field is greater than MTU-44 bytes, then behaviour is undefined. A future version will support fragmented
+packets and lengths larger than a single MTU.
 
 
