@@ -84,8 +84,8 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
   }
   if (~crc)
   {
-    /*printstr("DISCARD ");
-    printhex(crc);
+    printstr("DISCARD ");
+    /*printhex(crc);
     printchar(' ');
     printintln(taillen);*/
     return -1;
@@ -110,7 +110,7 @@ int rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
 {
   unsigned ctrlval, waiting = 0;
-  unsigned hasRoom = buf.free >= BUFFER_MINFREE;
+  unsigned hasRoom = buf.free >= BUFFER_MINFREE, pkt = 0;
   int size = 0;
   ethernet_rx_init(mii);
   mii.p_mii_rxdv when pinseq(0) :> int _;
@@ -140,9 +140,12 @@ void ethernet_rx(struct buffer &buf, struct mii_rx &mii, chanend ctrl)
         }
         break;
       case mii.p_mii_rxd when pinseq(0xD) :> int _:
+        pkt++;
         if (!hasRoom)
         {
-          //printstrln("RXOVF");
+          printstr("RXOVF ");
+          printintln(pkt);
+          assert(0);
           mii.p_mii_rxdv when pinseq(0) :> int _;
 			    clearbuf(mii.p_mii_rxd);
 			    break;
