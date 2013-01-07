@@ -127,31 +127,3 @@ unsigned short checksum_udp(const unsigned char frame[], int udplen)
 
   return accum;
 }
-
-// create a checksum
-unsigned short checksum_ip_create(const unsigned char frame[])
-{
-  int i;
-  unsigned accum = 0;
-
-  for (i = 14; i < 24; i += 2)
-  {
-    accum += *((u16_t*)(frame + i));
-  }
-  // skip the actual checksum
-  for (i = 26; i < 34; i += 2)
-  {
-    accum += *((u16_t*)(frame + i));
-  }
-
-
-  // Fold carry into 16bits
-  while (accum >> 16)
-  {
-    accum = (accum & 0xFFFF) + (accum >> 16);
-  }
-
-  accum = byterev(~accum) >> 16;
-
-  return accum;
-}

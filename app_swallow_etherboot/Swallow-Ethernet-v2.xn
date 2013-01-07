@@ -43,6 +43,8 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
             <Port Location="XS1_PORT_1J" Name="ETH_MDC"/> <!--  I2C clock -->
             <Port Location="XS1_PORT_1I" Name="ETH_MDIO"/> <!--  I2C data -->
             <Port Location="XS1_PORT_1H" Name="ETH_RX_DV"/> <!--  Receive data valid -->
+            <Port Location="XS1_PORT_4E" Name="ETH_RX_ERR"/> <!-- RX Error -->
+            <Port Location="XS1_PORT_1P" Name="ETH_TIMING"/> <!-- Lite mode timing -->
          </Core>
         </Node>
       </Nodes>
