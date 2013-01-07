@@ -4,7 +4,7 @@ import socket,time
 
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 dest = ("192.168.128.3",0x1b1b)
-pkt = "a" * 1472
+pkt = 'a' * 1470
 
 """for i in range(1):
 	sock.sendto(pkt,dest)"""

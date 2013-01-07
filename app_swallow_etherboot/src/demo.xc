@@ -330,6 +330,25 @@ int is_valid_icmp_packet(const unsigned char rxbuf[], int nbytes)
   return 1;
 }
 
+unsigned udp_checksum(unsigned short frame[], unsigned pkt_len)
+{
+  unsigned accum = 0x1100 + frame[19], len = pkt_len >> 1, i;
+  for (i = 13; i < len; i += 1)
+  {
+    accum += frame[i];
+  }
+  if (len & 1)
+  {
+    accum += frame[i] & 0xff;
+  }
+  while(accum >> 16)
+  {
+    accum = (accum & 0xffff) + (accum >> 16);
+  }
+  accum = byterev(~accum) >> 16;
+  return accum;
+}
+
 int build_udp_loopback(unsigned char rxbuf[], unsigned char txbuf[], const unsigned char own_mac_addr[6], unsigned len)
 {
   unsigned word;
@@ -396,14 +415,11 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
     return 0;
   }
   
-  /*{
-    if (checksum_udp((rxbuf,char[])) != 0)
-    {
-      printstrln("Bad UDP checksum");
-      printhexln(checksum_udp((rxbuf,char[])));
-      return 0;
-    }
-  }*/
+  if (udp_checksum((rxbuf,unsigned short[]),nbytes) != 0)
+  {
+    printstrln("Bad UDP checksum");
+    return 0;
+  }
   
 
   return 1;
