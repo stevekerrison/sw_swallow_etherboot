@@ -9,7 +9,8 @@ TARGET = Swallow-Ethernet-v2
 APP_NAME = swallow_etherboot
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot swallow_ethernet
+#USED_MODULES = swallow_comms swallow-xlinkboot base_xlinkboot swallow_ethernet
+USED_MODULES = swallow_comms swallow_ethernet
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:
