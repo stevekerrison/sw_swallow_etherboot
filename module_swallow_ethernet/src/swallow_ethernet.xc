@@ -14,6 +14,7 @@
 #include <platform.h>
 #include <stdlib.h>
 #include "swallow_ethernet.h"
+#include "swallow_comms.h"
 #include "ethernet.h"
 #include "checksum.h"
 #include "xscope.h"
@@ -290,11 +291,7 @@ unsigned udp_checksum(unsigned short frame[], unsigned pkt_len)
 
 int build_udp_loopback(unsigned char rxbuf[], unsigned char txbuf[], const unsigned char own_mac_addr[6], unsigned len)
 {
-  unsigned word;
-  unsigned char byte;
-  const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
   len += 38;
-
   for (int i = 0; i < 6; i++)
   {
     txbuf[i] = rxbuf[6+i];
@@ -363,8 +360,47 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
   return 1;
 }
 
+#pragma unsafe arrays
+static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend grid)
+{
+  unsigned dst, format, len, udp_len;
+  if ((frame,unsigned short[])[21] != 0x7ada) //Does UDP payload have "D47A" at the front?
+  {
+    return 0;
+  }
+  udp_len = byterev((frame,unsigned short[])[19]) >> 16;
+  dst = byterev((frame,unsigned [])[11]);
+  format = byterev((frame,unsigned [])[12]);
+  len = format & 0x00ffffff;
+  format >>= 24;
+  if (len > 0 && udp_len - 18 != len * format)
+  {
+    return 0;
+  }
+  else if (len == 0)
+  {
+    len = (udp_len - 18) / format;
+  }
+  startTransactionClient(grid,dst,format,len);
+  if (format == 0x1)
+  {
+    for (int i = 0; i < len; i += 1)
+    {
+      streamOutByte(grid,frame[52+i]);
+    }
+  }
+  else if (format == 0x4)
+  {
+    for (int i = 0; i < len; i += 1)
+    {
+      streamOutWord(grid,(frame,unsigned [])[13+i]);
+    }
+  }
+  endTransactionClient(grid);
+  return 1;
+}
 
-void swallow_ethernet(chanend tx, chanend rx)
+void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, chanend grid_rx)
 {
   unsigned int rxbuf[1600/4];
   unsigned int txbuf[1600/4];
@@ -415,11 +451,15 @@ void swallow_ethernet(chanend tx, chanend rx)
       udp_len &= 0xffff;
       switch (udp_dst)
       {
-        case 0x1b1b: //Loopback test
+        case 69:      //TFTP
+          break;
+        case 0x1b1b:  //Loopback test
           build_udp_loopback((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr, udp_len);
           mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
           break;
-        case 0x5b5b: //5wallow Board I/O
+        case 0x5b5b:  //5wallow Board I/O
+          handle_udp_5b5b((rxbuf,char[]), nbytes, grid_tx);
+          break;
         default:
           //Nothing to do
           break;

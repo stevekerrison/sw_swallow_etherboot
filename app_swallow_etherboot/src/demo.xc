@@ -33,6 +33,7 @@
 #include "checksum.h"
 #include "xscope.h"
 #include "swallow_ethernet.h"
+#include "swallow_comms.h"
 
 // If you have a board with the xscope xlink enabled (e.g. the XC-2) then
 // change this define to 0, make sure you also remove the -lxscope from
@@ -76,10 +77,26 @@ mii_interface_t mii =
 };
 ethernet_reset_interface_t eth_rst = ETHERNET_DEFAULT_RESET_INTERFACE_INIT;
 
+void grid_example(streaming chanend x)
+{
+  unsigned dst, format, length, w;
+  while(1)
+  {
+    startTransactionServer(x,dst,format,length);
+    //We assume we are format = 0x4, because we're lazy in this demo
+    for (int i = 0; i < length; i += 1)
+    {
+      streamInWord(x,w);
+      printhexln(byterev(w));
+    }
+    endTransactionServer(x);
+  }
+}
+
 int main()
 {
-  chan rx[1], tx[1];
-
+  chan rx[1], tx[1], swallow[2];
+  streaming chan x;
   par
     {
       //::ethernet
@@ -99,7 +116,13 @@ int main()
       //::
 
       //::swallow_ethernet module
-      on ETHERNET_DEFAULT_TILE : swallow_ethernet(tx[0], rx[0]);
+      on ETHERNET_DEFAULT_TILE : {
+        par
+        {
+          swallow_ethernet(tx[0], rx[0], swallow[0], swallow[1]);
+          grid_example(x); //Note that chan x isn't connected at both ends, demonstrating swallow_ethernet's many-to-one nature 
+        }
+      }
       //::
     }
 
