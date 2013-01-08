@@ -333,6 +333,8 @@ int is_valid_icmp_packet(const unsigned char rxbuf[], int nbytes)
 unsigned udp_checksum(unsigned short frame[], unsigned pkt_len)
 {
   unsigned accum = 0x1100 + frame[19], len = pkt_len >> 1, i;
+  printstr("Checksum field is: ");
+  printhexln(frame[20]);
   for (i = 13; i < len; i += 1)
   {
     accum += frame[i];
@@ -346,6 +348,7 @@ unsigned udp_checksum(unsigned short frame[], unsigned pkt_len)
     accum = (accum & 0xffff) + (accum >> 16);
   }
   accum = byterev(~accum) >> 16;
+  printhexln(accum);
   return accum;
 }
 
@@ -382,7 +385,6 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
   static const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
   unsigned totallen;
 
-
   if (rxbuf[23] != 0x11)
     return 0;
 
@@ -415,11 +417,11 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
     return 0;
   }
   
-  if (udp_checksum((rxbuf,unsigned short[]),nbytes) != 0)
+  /*if (udp_checksum((rxbuf,unsigned short[]),nbytes) != 0)
   {
     printstrln("Bad UDP checksum");
     return 0;
-  }
+  }*/
   
 
   return 1;
