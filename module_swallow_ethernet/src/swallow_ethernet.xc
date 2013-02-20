@@ -119,24 +119,24 @@ int is_valid_arp_packet(const unsigned char rxbuf[], int nbytes)
 
   if ((rxbuf, const unsigned[])[3] != 0x01000608)
   {
-    printstr("Invalid et_htype\n");
+    //printstr("Invalid et_htype\n");
     return 0;
   }
   if ((rxbuf, const unsigned[])[4] != 0x04060008)
   {
-    printstr("Invalid ptype_hlen\n");
+    //printstr("Invalid ptype_hlen\n");
     return 0;
   }
   if (((rxbuf, const unsigned[])[5] & 0xFFFF) != 0x0100)
   {
-    printstr("Not a request\n");
+    //printstr("Not a request\n");
     return 0;
   }
   for (int i = 0; i < 4; i++)
   {
     if (rxbuf[38 + i] != own_ip_addr[i])
     {
-      printstr("Not for us\n");
+      //printstr("Not for us\n");
       return 0;
     }
   }
@@ -414,7 +414,7 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, chanend grid_rx)
   mac_set_custom_filter(rx, 0x1);
 #endif
   //::
-  printstr("Test started\n");
+  //printstr("Test started\n");
 
   //::mainloop
   while (1)

@@ -38,10 +38,14 @@
 // If you have a board with the xscope xlink enabled (e.g. the XC-2) then
 // change this define to 0, make sure you also remove the -lxscope from
 // the build flags in the Makefile
-#define USE_XSCOPE 1
+//#define USE_XSCOPE 1
 
 #define ETHERNET_DEFAULT_TILE stdcore[0]
 
+/* XLinkboot stuff */
+#include "swallow_xlinkboot.h"
+out port swallow_rst = XS1_PORT_1D; //I on old, D on new
+struct xlinkboot_pll_t PLLs[1] = {{-1,0,-1,0x00002700,1,5}};
 
 #if USE_XSCOPE
 void xscope_user_init(void) {
@@ -104,6 +108,7 @@ int main()
       {
         char mac_address[6] = {0x00,0x22,0x97,0x5b,0x00,0x01};
         //otp_board_info_get_mac(otp_ports, 0, mac_dummy);
+        swallow_xlinkboot(2,3,1,SWXLB_POS_BOTTOM,PLLs,1,swallow_rst);
         eth_phy_reset(eth_rst);
         smi_init(smi);
         eth_phy_config(1, smi);
@@ -113,14 +118,9 @@ int main()
                         rx, 1,
                         tx, 1);
       }
-      //::
-
-      //::swallow_ethernet module
       on ETHERNET_DEFAULT_TILE : {
-        par
-        {
+        par {
           swallow_ethernet(tx[0], rx[0], swallow[0], swallow[1]);
-          grid_example(x); //Note that chan x isn't connected at both ends, demonstrating swallow_ethernet's many-to-one nature 
         }
       }
       //::
