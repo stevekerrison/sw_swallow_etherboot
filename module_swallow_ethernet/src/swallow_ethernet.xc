@@ -19,6 +19,8 @@
 #include "checksum.h"
 #include "xscope.h"
 
+#define BUF_SIZE (1600/4)
+
 unsigned char ethertype_ip[] = {0x08, 0x00};
 unsigned char ethertype_arp[] = {0x08, 0x06};
 unsigned char own_mac_addr[6];
@@ -400,10 +402,59 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend g
   return 1;
 }
 
-void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, chanend grid_rx)
+static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF_SIZE],
+  unsigned int nbytes, unsigned int src_port, chanend grid_tx, chanend tx)
 {
-  unsigned int rxbuf[1600/4];
-  unsigned int txbuf[1600/4];
+#ifdef CONFIG_LITE
+  if (!is_broadcast((rxbuf,char[])) && !is_mac_addr((rxbuf,char[]), own_mac_addr))
+    continue;
+  if (mac_custom_filter(rxbuf) != 0x1)
+    continue;
+#endif
+
+
+ //::arp_packet_check
+  if (is_valid_arp_packet((rxbuf,char[]), nbytes))
+    {
+      build_arp_response((rxbuf,char[]), txbuf, own_mac_addr);
+      mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
+      //printstr("ARP response sent\n");
+    }
+//::icmp_packet_check  
+  else if (is_valid_icmp_packet((rxbuf,char[]), nbytes))
+    {
+      build_icmp_response((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr);
+      mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
+      //printstr("ICMP response sent\n");
+    }
+  else if (is_valid_udp_packet((rxbuf,char[]),nbytes))
+  {
+    unsigned udp_len = byterev(rxbuf[9]);
+    unsigned udp_dst = udp_len >> 16;
+    udp_len &= 0xffff;
+    switch (udp_dst)
+    {
+      case 69:      //TFTP
+        break;
+      case 0x1b1b:  //Loopback test
+        build_udp_loopback((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr, udp_len);
+        mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
+        break;
+      case 0x5b5b:  //5wallow Board I/O
+        handle_udp_5b5b((rxbuf,char[]), nbytes, grid_tx);
+        break;
+      default:
+        //Nothing to do
+        break;
+    }
+  }
+  return;
+}
+
+void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx)
+{
+  unsigned int rxbuf[BUF_SIZE];
+  unsigned int txbuf[BUF_SIZE];
   
   //::get-macaddr
   mac_get_macaddr(tx, own_mac_addr);
@@ -415,56 +466,22 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, chanend grid_rx)
 #endif
   //::
   //printstr("Test started\n");
-
+  printhexln(getLocalStreamingChanendId(grid_rx));
   //::mainloop
   while (1)
   {
     unsigned int src_port;
-    unsigned int nbytes;
-    mac_rx(rx, (rxbuf,char[]), nbytes, src_port);
-#ifdef CONFIG_LITE
-    if (!is_broadcast((rxbuf,char[])) && !is_mac_addr((rxbuf,char[]), own_mac_addr))
-      continue;
-    if (mac_custom_filter(rxbuf) != 0x1)
-      continue;
-#endif
-
-
-   //::arp_packet_check
-    if (is_valid_arp_packet((rxbuf,char[]), nbytes))
-      {
-        build_arp_response((rxbuf,char[]), txbuf, own_mac_addr);
-        mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
-        //printstr("ARP response sent\n");
-      }
-  //::icmp_packet_check  
-    else if (is_valid_icmp_packet((rxbuf,char[]), nbytes))
-      {
-        build_icmp_response((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr);
-        mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
-        //printstr("ICMP response sent\n");
-      }
-    else if (is_valid_udp_packet((rxbuf,char[]),nbytes))
+    unsigned int nbytes, dst, format, length;
+    select
     {
-      unsigned udp_len = byterev(rxbuf[9]);
-      unsigned udp_dst = udp_len >> 16;
-      udp_len &= 0xffff;
-      switch (udp_dst)
-      {
-        case 69:      //TFTP
-          break;
-        case 0x1b1b:  //Loopback test
-          build_udp_loopback((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr, udp_len);
-          mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
-          break;
-        case 0x5b5b:  //5wallow Board I/O
-          handle_udp_5b5b((rxbuf,char[]), nbytes, grid_tx);
-          break;
-        default:
-          //Nothing to do
-          break;
-      }
+      case mac_rx(rx, (rxbuf,char[]), nbytes, src_port):
+        packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx);
+        break;
+      case startTransactionServer(grid_rx,dst,format,length):
+        printstrln("WOO");
+        endTransactionServer(grid_rx);
+        break;
     }
-  //::
   }
 }
+

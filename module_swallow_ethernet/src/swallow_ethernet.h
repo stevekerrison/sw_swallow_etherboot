@@ -14,4 +14,4 @@
 #define OWN_IP_ADDRESS {192, 168, 128, 3}
 //::
 
-void swallow_ethernet(chanend rx, chanend tx, chanend grid_tx, chanend grid_rx);
+void swallow_ethernet(chanend rx, chanend tx, chanend grid_tx, streaming chanend grid_rx);

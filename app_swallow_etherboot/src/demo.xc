@@ -99,8 +99,9 @@ void grid_example(streaming chanend x)
 
 int main()
 {
-  chan rx[1], tx[1], swallow[2];
-  streaming chan x;
+  chan rx[1], tx[1], tx_into_swallow;
+  streaming chan rx_from_swallow;
+  chan x;
   par
     {
       //::ethernet
@@ -120,7 +121,15 @@ int main()
       }
       on ETHERNET_DEFAULT_TILE : {
         par {
-          swallow_ethernet(tx[0], rx[0], swallow[0], swallow[1]);
+          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow);
+          {
+            timer t;
+            unsigned tv;
+            t :> tv;
+            t when timerafter(tv + 0x10000000) :> void;
+            startTransactionClient(x,0xB0D0402,0,0);
+            endTransactionClient(x);
+          }
         }
       }
       //::
