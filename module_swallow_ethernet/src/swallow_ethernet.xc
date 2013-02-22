@@ -444,7 +444,8 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend g
 }
 
 static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF_SIZE],
-  unsigned int nbytes, unsigned int src_port, chanend grid_tx, chanend tx)
+  unsigned int nbytes, unsigned int src_port, chanend grid_tx, chanend tx,
+  struct swallow_xlinkboot_cfg &cfg)
 {
 #ifdef CONFIG_LITE
   if (!is_broadcast((rxbuf,char[])) && !is_mac_addr((rxbuf,char[]), own_mac_addr))
@@ -476,7 +477,7 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
     switch (udp_dst)
     {
       case 69:      //TFTP
-        swallow_tftp_server((rxbuf,unsigned char[]), (txbuf, unsigned char[]), udp_len, tx);
+        swallow_tftp_server((rxbuf,unsigned char[]), (txbuf, unsigned char[]), udp_len, tx, cfg);
         break;
       case 0x1b1b:  //Loopback test
         build_udp_loopback((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr, udp_len);
@@ -503,7 +504,8 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned int txbuf[BUF
   return;
 }
 
-void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx)
+void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx,
+  struct swallow_xlinkboot_cfg &cfg)
 {
   unsigned int rxbuf[BUF_SIZE];
   unsigned int txbuf[BUF_SIZE];
@@ -529,7 +531,7 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
     select
     {
       case mac_rx(rx, (rxbuf,char[]), nbytes, src_port):
-        packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx);
+        packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx, cfg);
         break;
       case grid_outbound(grid_rx, tx, txbuf):
         break;

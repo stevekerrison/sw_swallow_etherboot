@@ -8,10 +8,13 @@
  * LICENSE.txt and at <http://github.xcore.com/>
  */
  
+#include "swallow_xlinkboot.h"
+ 
 //::ip_address_define
 // NOTE: YOU MAY NEED TO REDEFINE THIS TO AN IP ADDRESS THAT WORKS
 // FOR YOUR NETWORK
 #define OWN_IP_ADDRESS {192, 168, 128, 3}
 //::
 
-void swallow_ethernet(chanend rx, chanend tx, chanend grid_tx, streaming chanend grid_rx);
+void swallow_ethernet(chanend rx, chanend tx, chanend grid_tx, streaming chanend grid_rx,
+  struct swallow_xlinkboot_cfg &cfg);

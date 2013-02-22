@@ -12,7 +12,10 @@
 #define _SWALLOW_TFTP_SERVER_H
  
 #include <xs1.h>
+#include "swallow_xlinkboot.h"
 
-void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len, chanend tx);
+void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len, chanend tx,
+  struct swallow_xlinkboot_cfg &cfg);
+void swallow_tftp_init_cfgstr(struct swallow_xlinkboot_cfg &cfg);
 
 #endif //_SWALLOW_TFTP_SERVER_H

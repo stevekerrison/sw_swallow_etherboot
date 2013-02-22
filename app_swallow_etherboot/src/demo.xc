@@ -44,8 +44,17 @@
 
 /* XLinkboot stuff */
 #include "swallow_xlinkboot.h"
-out port swallow_rst = XS1_PORT_1D; //I on old, D on new
-struct xlinkboot_pll_t PLLs[1] = {{-1,0,-1,0x00002700,1,5}};
+//out port swallow_rst = XS1_PORT_1D; //I on old, D on new
+//struct xlinkboot_pll_t PLLs[1] = {{-1,0,-1,0x00002700,1,5}};
+struct swallow_xlinkboot_cfg swxlb_cfg = {
+  2,
+  3,
+  1,
+  SWXLB_POS_BOTTOM,
+  {{-1,0,-1,0x00002700,1,5}},
+  1,
+  XS1_PORT_1D //I on old, D on new
+};
 
 #if USE_XSCOPE
 void xscope_user_init(void) {
@@ -109,7 +118,7 @@ int main()
       {
         char mac_address[6] = {0x00,0x22,0x97,0x5b,0x00,0x01};
         //otp_board_info_get_mac(otp_ports, 0, mac_dummy);
-        swallow_xlinkboot(2,3,1,SWXLB_POS_BOTTOM,PLLs,1,swallow_rst);
+        //swallow_xlinkboot(2,3,1,SWXLB_POS_BOTTOM,PLLs,1,swallow_rst);
         eth_phy_reset(eth_rst);
         smi_init(smi);
         eth_phy_config(1, smi);
@@ -121,7 +130,7 @@ int main()
       }
       on ETHERNET_DEFAULT_TILE : {
         par {
-          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow);
+          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow,swxlb_cfg);
           /*{
             timer t;
             unsigned tv;
