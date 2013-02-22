@@ -18,12 +18,52 @@
 #include "ethernet.h"
 #include "checksum.h"
 #include "xscope.h"
+#include "swallow_tftp_server.h"
 
 #define BUF_SIZE (1600/4)
+#define ARP_CACHE_SIZE 1
+
+struct arp_cache_entry {
+  unsigned char ip[4];
+  unsigned char mac[6];
+};
+
+struct arp_cache_entry arp_cache_table[ARP_CACHE_SIZE];
 
 unsigned char ethertype_ip[] = {0x08, 0x00};
 unsigned char ethertype_arp[] = {0x08, 0x06};
 unsigned char own_mac_addr[6];
+
+static void init_arp_cache()
+{
+  for (int i = 0; i < ARP_CACHE_SIZE; i += 1)
+  {
+    (arp_cache_table[i].ip,unsigned) = 0;
+    (arp_cache_table[i].mac,unsigned[])[0] = 0;
+    arp_cache_table[i].mac[4] = 0;
+    arp_cache_table[i].mac[5] = 0;
+  }
+}
+
+#pragma unsafe arrays
+static int add_arp_cache(unsigned int buf[])
+{
+  for (int i = 0; i < ARP_CACHE_SIZE; i += 1)
+  {
+    if ((arp_cache_table[i].ip,unsigned) == 0)
+    {
+      for (int j = 0; j < 4; j += 1)
+      {
+        arp_cache_table[i].ip[j] = (buf,unsigned char[])[38+j];
+      }
+      (arp_cache_table[i].mac,unsigned[])[0] = buf[0];
+      arp_cache_table[i].mac[4] = buf[4];
+      arp_cache_table[i].mac[5] = buf[5];
+      return 1;
+    }
+  }
+  return 0;
+}
 
 #pragma unsafe arrays
 int is_ethertype(unsigned char data[], unsigned char type[]){
@@ -38,7 +78,6 @@ int is_mac_addr(unsigned char data[], unsigned char addr[]){
 			return 0;
 		}
 	}
-
 	return 1;
 }
 
@@ -65,7 +104,7 @@ int mac_custom_filter(unsigned int data[]){
 }
 //::
 
-
+#pragma unsafe arrays
 int build_arp_response(unsigned char rxbuf[], unsigned int txbuf[], const unsigned char own_mac_addr[6])
 {
   unsigned word;
@@ -73,17 +112,18 @@ int build_arp_response(unsigned char rxbuf[], unsigned int txbuf[], const unsign
   const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
 
   for (int i = 0; i < 6; i++)
-    {
-      byte = rxbuf[22+i];
-      (txbuf, unsigned char[])[i] = byte;
-      (txbuf, unsigned char[])[32 + i] = byte;
-    }
+  {
+    byte = rxbuf[22+i];
+    (txbuf, unsigned char[])[i] = byte;
+    (txbuf, unsigned char[])[32 + i] = byte;
+  }
   word = (rxbuf, const unsigned[])[7];
   for (int i = 0; i < 4; i++)
-    {
-      (txbuf, unsigned char[])[38 + i] = word & 0xFF;
-      word >>= 8;
-    }
+  {
+    (txbuf, unsigned char[])[38 + i] = word & 0xFF;
+    word >>= 8;
+  }
+  add_arp_cache(txbuf);
 
   (txbuf, unsigned char[])[28] = own_ip_addr[0];
   (txbuf, unsigned char[])[29] = own_ip_addr[1];
@@ -109,7 +149,7 @@ int build_arp_response(unsigned char rxbuf[], unsigned int txbuf[], const unsign
   return 64;
 }
 
-
+#pragma unsafe arrays
 int is_valid_arp_packet(const unsigned char rxbuf[], int nbytes)
 {
   static const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
@@ -146,7 +186,7 @@ int is_valid_arp_packet(const unsigned char rxbuf[], int nbytes)
   return 1;
 }
 
-
+#pragma unsafe arrays
 int build_icmp_response(unsigned char rxbuf[], unsigned char txbuf[], const unsigned char own_mac_addr[6])
 {
   static const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
@@ -221,7 +261,7 @@ int build_icmp_response(unsigned char rxbuf[], unsigned char txbuf[], const unsi
   return pad;
 }
 
-
+#pragma unsafe arrays
 int is_valid_icmp_packet(const unsigned char rxbuf[], int nbytes)
 {
   static const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
@@ -235,19 +275,19 @@ int is_valid_icmp_packet(const unsigned char rxbuf[], int nbytes)
 
   if ((rxbuf, const unsigned[])[3] != 0x00450008)
   {
-    printstr("Invalid et_ver_hdrl_tos\n");
+    //printstr("Invalid et_ver_hdrl_tos\n");
     return 0;
   }
   if (((rxbuf, const unsigned[])[8] >> 16) != 0x0008)
   {
-    printstr("Invalid type_code\n");
+    //printstr("Invalid type_code\n");
     return 0;
   }
   for (int i = 0; i < 4; i++)
   {
     if (rxbuf[30 + i] != own_ip_addr[i])
     {
-      printstr("Not for us\n");
+      //printstr("Not for us\n");
       return 0;
     }
   }
@@ -255,20 +295,21 @@ int is_valid_icmp_packet(const unsigned char rxbuf[], int nbytes)
   totallen = byterev((rxbuf, const unsigned[])[4]) >> 16;
   if (nbytes > 60 && nbytes != totallen + 14)
   {
-    printstr("Invalid size\n");
+    //printstr("Invalid size\n");
     printintln(nbytes);
     printintln(totallen+14);
     return 0;
   }
   if (checksum_ip(rxbuf) != 0)
   {
-    printstr("Bad checksum\n");
+    //printstr("Bad checksum\n");
     return 0;
   }
 
   return 1;
 }
 
+#pragma unsafe arrays
 unsigned udp_checksum(unsigned short frame[], unsigned pkt_len)
 {
   unsigned accum = 0x1100 + frame[19], len = pkt_len >> 1, i;
@@ -326,14 +367,14 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
 
   if ((rxbuf, const unsigned[])[3] != 0x00450008)
   {
-    printstr("Invalid et_ver_hdrl_tos\n");
+    //printstr("Invalid et_ver_hdrl_tos\n");
     return 0;
   }
   for (int i = 0; i < 4; i++)
   {
     if (rxbuf[30 + i] != own_ip_addr[i])
     {
-      printstr("Not for us\n");
+      //printstr("Not for us\n");
       return 0;
     }
   }
@@ -341,14 +382,14 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
   totallen = byterev((rxbuf, const unsigned[])[4]) >> 16;
   if (nbytes > 60 && nbytes != totallen + 14)
   {
-    printstr("Invalid size\n");
+    //printstr("Invalid size\n");
     printintln(nbytes);
     printintln(totallen+14);
     return 0;
   }
   if (checksum_ip(rxbuf) != 0)
   {
-    printstr("Bad checksum\n");
+    //printstr("Bad checksum\n");
     return 0;
   }
   
@@ -415,18 +456,18 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
 
  //::arp_packet_check
   if (is_valid_arp_packet((rxbuf,char[]), nbytes))
-    {
-      build_arp_response((rxbuf,char[]), txbuf, own_mac_addr);
-      mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
-      //printstr("ARP response sent\n");
-    }
+  {
+    build_arp_response((rxbuf,char[]), txbuf, own_mac_addr);
+    mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
+    //printstr("ARP response sent\n");
+  }
 //::icmp_packet_check  
   else if (is_valid_icmp_packet((rxbuf,char[]), nbytes))
-    {
-      build_icmp_response((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr);
-      mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
-      //printstr("ICMP response sent\n");
-    }
+  {
+    build_icmp_response((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr);
+    mac_tx(tx, txbuf, nbytes, ETH_BROADCAST);
+    //printstr("ICMP response sent\n");
+  }
   else if (is_valid_udp_packet((rxbuf,char[]),nbytes))
   {
     unsigned udp_len = byterev(rxbuf[9]);
@@ -435,6 +476,7 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
     switch (udp_dst)
     {
       case 69:      //TFTP
+        swallow_tftp_server((rxbuf,unsigned char[]), (txbuf, unsigned char[]), udp_len, tx);
         break;
       case 0x1b1b:  //Loopback test
         build_udp_loopback((rxbuf,char[]), (txbuf, unsigned char[]), own_mac_addr, udp_len);
@@ -451,10 +493,22 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
   return;
 }
 
+#pragma select handler
+void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned int txbuf[BUF_SIZE])
+{
+  unsigned dst, format, length;
+  startTransactionServer(grid_rx,dst,format,length);
+  printstrln("WOO");
+  endTransactionServer(grid_rx);
+  return;
+}
+
 void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx)
 {
   unsigned int rxbuf[BUF_SIZE];
   unsigned int txbuf[BUF_SIZE];
+  
+  init_arp_cache();
   
   //::get-macaddr
   mac_get_macaddr(tx, own_mac_addr);
@@ -477,9 +531,7 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
       case mac_rx(rx, (rxbuf,char[]), nbytes, src_port):
         packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx);
         break;
-      case startTransactionServer(grid_rx,dst,format,length):
-        printstrln("WOO");
-        endTransactionServer(grid_rx);
+      case grid_outbound(grid_rx, tx, txbuf):
         break;
     }
   }
