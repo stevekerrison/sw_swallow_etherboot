@@ -113,10 +113,10 @@ void swallow_tftp_init_cfgstr(struct swallow_xlinkboot_cfg &cfg)
   return;
 }
 
-static int swallow_tftp_boot(unsigned char rxbuf[], struct swallow_xlinkboot_cfg &cfg)
+static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swallow_xlinkboot_cfg &cfg)
 {
   static unsigned state = READY;
-  static unsigned cores, block;
+  static unsigned cores, block, word, node, ce;
   if (state == READY)
   {
     unsigned newblock = (rxbuf[44] << 8) | rxbuf[45];
@@ -133,6 +133,25 @@ static int swallow_tftp_boot(unsigned char rxbuf[], struct swallow_xlinkboot_cfg
     if (rxbuf[46] == 1)
     {
       swallow_xlinkboot(cfg.boards_w,cfg.boards_h,1,cfg.position,cfg.PLL,cfg.PLL_len,cfg.reset_port);
+    }
+    word = rxbuf[49];
+    word <<= 8;
+    word |= rxbuf[50];
+    word <<= 8;
+    word |= rxbuf[51];
+    word <<= 8;
+    word |= rxbuf[52];
+    //TODO: Now get a channel end
+    streamOutWord(ce,node);
+    streamOutWord(ce,word);
+    for (int i = 53; i < udp_len + 34; i += 1)
+    {
+      for (int j = 0; j < 4; j += 1)
+      {
+        word <<= 8;
+        word |= rxbuf[j];
+      }
+      streamOutWord(ce,word);
     }
   }
   return 0;
@@ -190,7 +209,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       state = IDLE;
       return;
     }
-    if ((boot_result = swallow_tftp_boot(rxbuf, cfg)) < 0)
+    if ((boot_result = swallow_tftp_boot(rxbuf, udp_len, cfg)) < 0)
     {
       txbuf[42] = 0;
       txbuf[43] = ACK;
