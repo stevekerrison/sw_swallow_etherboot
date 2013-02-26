@@ -510,6 +510,10 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
   unsigned int rxbuf[BUF_SIZE];
   unsigned int txbuf[BUF_SIZE];
   
+  
+  swallow_tftp_init_cfgstr(cfg);
+  //swallow_xlinkboot(cfg.boards_w,cfg.boards_h,cfg.do_reset,cfg.position,cfg.PLL,cfg.PLL_len,cfg.reset_port);
+  
   init_arp_cache();
   
   //::get-macaddr
