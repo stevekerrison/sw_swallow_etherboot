@@ -124,9 +124,12 @@ static int getword(unsigned char rxbuf[], unsigned udp_len, unsigned &bufpos, un
     if (bytepos >= 4)
     {
       bytepos = 0;
+      word = byterev(word);
       return 1;
     }
   }
+  //printstrln("Time for a new packet");
+  //printintln(bufpos);
   bufpos = 46;
   return 0;
 }
@@ -184,6 +187,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       freeChanend(ce);
       printstr("Sending image to node 0x");
       printhexln(swallow_id(node,cfg.boards_w));
+      printintln(imsize);
       ce = getChanend((swallow_id(node,cfg.boards_w) << 16) | 0x2);
       streamOutWord(ce,imsize);
       state = BOOTING;
@@ -196,13 +200,17 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     {
       if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
       {
+        //printintln(impos);
+        //printintln(imsize);
         break;
       }
       streamOutWord(ce,word);
+      printhexln(word);
       impos++;
     }
     if (impos == imsize) //End of image
     {
+      printstrln("Nearly done...");
       streamOutWord(ce,crc);
       asm("outct res[%0],1\n"
         "chkct res[%0],1\n"::"r"(ce));
