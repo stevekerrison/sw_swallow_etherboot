@@ -134,6 +134,14 @@ static int getword(unsigned char rxbuf[], unsigned udp_len, unsigned &bufpos, un
   return 0;
 }
 
+static void swallow_tftp_reset(unsigned &bufpos, unsigned &bytepos, unsigned &block, unsigned &state)
+{
+  state = READY;
+  bufpos = 46;
+  bytepos = 0;
+  block = 0;
+}
+
 //Steve's hideous state machine (doubt it'll catch on like Duff's device)
 static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swallow_xlinkboot_cfg &cfg)
 {
@@ -145,7 +153,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     unsigned opcode = (rxbuf[42] << 8) | rxbuf[43];
     if (opcode != DATA || newblock != block + 1)
     {
-      state = READY;
+      swallow_tftp_reset(bufpos,bytepos,block,state);
       return -4;
     }
     block += 1;
@@ -155,8 +163,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     cores = ((rxbuf[48] << 8) | rxbuf[47]);
     if (cores > ((cfg.boards_w + cfg.boards_h) * SWXLB_CORES_BOARD))
     {
-      state = READY;
-      printhexln(cores);
+      swallow_tftp_reset(bufpos,bytepos,block,state);
       return -3;
     }
     if (rxbuf[46] == 1)
@@ -176,8 +183,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
   {
     if (node >= cores)
     {
-      printstrln("Node overrun");
-      state = READY;
+      swallow_tftp_reset(bufpos,bytepos,block,state);
       return -3;
     }
     if (getword(rxbuf,udp_len,bufpos,bytepos,word))
@@ -185,10 +191,8 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       imsize = word;
       impos = 0;
       freeChanend(ce);
-      printstr("Sending image to node 0x");
-      printhexln(swallow_id(node,cfg.boards_w));
-      printintln(imsize);
       ce = getChanend((swallow_id(node,cfg.boards_w) << 16) | 0x2);
+      streamOutWord(ce,ce);
       streamOutWord(ce,imsize);
       state = BOOTING;
     }
@@ -200,21 +204,16 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     {
       if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
       {
-        //printintln(impos);
-        //printintln(imsize);
         break;
       }
       streamOutWord(ce,word);
-      printhexln(word);
       impos++;
     }
     if (impos == imsize) //End of image
     {
-      printstrln("Nearly done...");
       streamOutWord(ce,crc);
       asm("outct res[%0],1\n"
         "chkct res[%0],1\n"::"r"(ce));
-      printstrln("Done!");
       node += 1;
       state = END;
     }
@@ -224,11 +223,17 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
   {
     if (udp_len < 512 + 4 + 8) //If this is the last frame, do some final checks
     {
-      if (bufpos < udp_len + 34)
+      if (bufpos + 1 < udp_len + 34)
       {
         //We didn't read all the data? Something fishy is going on!
-        state = READY;
+        swallow_tftp_reset(bufpos,bytepos,block,state);
         return -4;
+      }
+      else
+      {
+      unsigned oldblock = block;
+      swallow_tftp_reset(bufpos,bytepos,block,state);
+      return oldblock;
       }
     }
   }
