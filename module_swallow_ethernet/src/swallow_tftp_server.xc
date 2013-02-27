@@ -40,6 +40,8 @@
 
 unsigned char cfg_str[8];
 
+unsigned state = READY, cores, block = 0, word, node, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
+
 static void copy_header(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len)
 {
   udp_len += 38;
@@ -134,7 +136,7 @@ static int getword(unsigned char rxbuf[], unsigned udp_len, unsigned &bufpos, un
   return 0;
 }
 
-static void swallow_tftp_reset(unsigned &bufpos, unsigned &bytepos, unsigned &block, unsigned &state)
+static void swallow_tftp_reset()
 {
   state = READY;
   bufpos = 46;
@@ -142,18 +144,60 @@ static void swallow_tftp_reset(unsigned &bufpos, unsigned &bytepos, unsigned &bl
   block = 0;
 }
 
+static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
+{
+  while(impos < imsize)
+  {
+    if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
+    {
+      return 0;
+    }
+    streamOutWord(ce,word);
+    impos++;
+  }
+  if (impos == imsize) //End of image
+  {
+    streamOutWord(ce,crc);
+    asm("outct res[%0],1\n"
+      "chkct res[%0],1\n"::"r"(ce));
+    node += 1;
+    state = node < cores ? GETSIZE : END;
+  }
+  return state != END;
+}
+
+static int tftp_getsize(unsigned char rxbuf[], struct swallow_xlinkboot_cfg &cfg, unsigned udp_len)
+{
+  if (node >= cores)
+  {
+    swallow_tftp_reset();
+    return -3;
+  }
+  if (getword(rxbuf,udp_len,bufpos,bytepos,word))
+  {
+    imsize = word;
+    impos = 0;
+    freeChanend(ce);
+    ce = getChanend((swallow_id(node,cfg.boards_w) << 16) | 0x2);
+    streamOutWord(ce,ce);
+    streamOutWord(ce,imsize);
+    state = BOOTING;
+    return 1;
+  }
+  return 0;
+}
+
 //Steve's hideous state machine (doubt it'll catch on like Duff's device)
 static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swallow_xlinkboot_cfg &cfg)
 {
-  static unsigned state = READY;
-  static unsigned cores, block = 0, word, node, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
+  int result = 1;
   if (bufpos == 46)
   {
     unsigned newblock = (rxbuf[44] << 8) | rxbuf[45];
     unsigned opcode = (rxbuf[42] << 8) | rxbuf[43];
     if (opcode != DATA || newblock != block + 1)
     {
-      swallow_tftp_reset(bufpos,bytepos,block,state);
+      swallow_tftp_reset();
       return -4;
     }
     block += 1;
@@ -163,7 +207,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     cores = ((rxbuf[48] << 8) | rxbuf[47]);
     if (cores > ((cfg.boards_w + cfg.boards_h) * SWXLB_CORES_BOARD))
     {
-      swallow_tftp_reset(bufpos,bytepos,block,state);
+      swallow_tftp_reset();
       return -3;
     }
     if (rxbuf[46] == 1)
@@ -178,44 +222,21 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     bufpos = 49;
     bytepos = 0;
   }
-  //Intentional lack of else!
-  if (state == GETSIZE)
+  while(result)
   {
-    if (node >= cores)
+    //Intentional lack of else!
+    if (state == GETSIZE)
     {
-      swallow_tftp_reset(bufpos,bytepos,block,state);
-      return -3;
+      result = tftp_getsize(rxbuf,cfg,udp_len);
+      if (result < 0)
+        return result;
     }
-    if (getword(rxbuf,udp_len,bufpos,bytepos,word))
+    //Intentional lack of else!
+    if (state == BOOTING)
     {
-      imsize = word;
-      impos = 0;
-      freeChanend(ce);
-      ce = getChanend((swallow_id(node,cfg.boards_w) << 16) | 0x2);
-      streamOutWord(ce,ce);
-      streamOutWord(ce,imsize);
-      state = BOOTING;
-    }
-  }
-  //Intentional lack of else!
-  if (state == BOOTING)
-  {
-    while(impos < imsize)
-    {
-      if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
-      {
-        break;
-      }
-      streamOutWord(ce,word);
-      impos++;
-    }
-    if (impos == imsize) //End of image
-    {
-      streamOutWord(ce,crc);
-      asm("outct res[%0],1\n"
-        "chkct res[%0],1\n"::"r"(ce));
-      node += 1;
-      state = END;
+      result = tftp_booting(rxbuf,udp_len);
+      if (result < 0)
+        return result;
     }
   }
   //Intentional lack of else!
@@ -226,13 +247,13 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       if (bufpos + 1 < udp_len + 34)
       {
         //We didn't read all the data? Something fishy is going on!
-        swallow_tftp_reset(bufpos,bytepos,block,state);
+        swallow_tftp_reset();
         return -4;
       }
       else
       {
       unsigned oldblock = block;
-      swallow_tftp_reset(bufpos,bytepos,block,state);
+      swallow_tftp_reset();
       return oldblock;
       }
     }
