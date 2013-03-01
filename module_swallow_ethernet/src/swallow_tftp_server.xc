@@ -166,7 +166,7 @@ static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
   return state != END;
 }
 
-static int tftp_getsize(unsigned char rxbuf[], struct swallow_xlinkboot_cfg &cfg, unsigned udp_len)
+static int tftp_getsize(unsigned char rxbuf[], unsigned udp_len)
 {
   if (node >= cores)
   {
@@ -178,7 +178,7 @@ static int tftp_getsize(unsigned char rxbuf[], struct swallow_xlinkboot_cfg &cfg
     imsize = word;
     impos = 0;
     freeChanend(ce);
-    ce = getChanend((swallow_id(node,cfg.boards_w) << 16) | 0x2);
+    ce = getChanend((swallow_id(node) << 16) | 0x2);
     streamOutWord(ce,ce);
     streamOutWord(ce,imsize);
     state = BOOTING;
@@ -227,7 +227,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     //Intentional lack of else!
     if (state == GETSIZE)
     {
-      result = tftp_getsize(rxbuf,cfg,udp_len);
+      result = tftp_getsize(rxbuf,udp_len);
       if (result < 0)
         return result;
     }

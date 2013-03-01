@@ -512,7 +512,8 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
   
   
   swallow_tftp_init_cfgstr(cfg);
-  //swallow_xlinkboot(cfg.boards_w,cfg.boards_h,cfg.do_reset,cfg.position,cfg.PLL,cfg.PLL_len,cfg.reset_port);
+  sw_nrows = cfg.boards_h * SWXLB_CHIPS_H;
+  sw_ncols = cfg.boards_w * SWXLB_CHIPS_W * SWXLB_CORES_CHIP;
   
   init_arp_cache();
   
