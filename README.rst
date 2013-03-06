@@ -85,4 +85,15 @@ The behaviour of the receiving chanend will depend on the application and the da
 The data field should never be more than MTU-44 bytes in size. Fragmented packets are not supported.
 If the length field is greater than MTU-44 bytes, then behaviour is undefined.
 
+TFTP
+----
+
+A TFTP server allows you to load code onto the grid. Simply connect to port 69 with a TFTP application in octet or
+binary mode (NOT binascii).
+
+Performing `get $filename` will fetch an ASCII file containing "boards_h,boards_w", regardless of the file requested.
+
+Performing `put $filename` and the device will attempt to load the supplied file, provided it is in SGB (Swallow Grid
+Binary) format. Please see the swallow_mcsc repository for a definition of the SGB format.
+
 

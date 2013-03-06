@@ -504,13 +504,15 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned int txbuf[BUF
   return;
 }
 
+
 void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx,
   struct swallow_xlinkboot_cfg &cfg)
 {
   unsigned int rxbuf[BUF_SIZE];
   unsigned int txbuf[BUF_SIZE];
+  unsigned tmp;
   
-  
+  swallow_xlinkboot_xscope_init();
   swallow_tftp_init_cfgstr(cfg);
   sw_nrows = cfg.boards_h * SWXLB_CHIPS_H;
   sw_ncols = cfg.boards_w * SWXLB_CHIPS_W * SWXLB_CORES_CHIP;
@@ -528,6 +530,10 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
   //::
   //printstr("Test started\n");
   printhexln(getLocalStreamingChanendId(grid_rx));
+  read_sswitch_reg(SWXLB_BOOT_ID,0xd,tmp);
+  printhexln(tmp);
+  read_sswitch_reg(SWXLB_BOOT_ID,0xc,tmp);
+  printhexln(tmp);
   //::mainloop
   while (1)
   {

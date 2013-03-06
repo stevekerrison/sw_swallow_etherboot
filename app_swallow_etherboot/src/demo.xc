@@ -31,9 +31,16 @@
 #include "otp_board_info.h"
 #include "ethernet.h"
 #include "checksum.h"
-#include "xscope.h"
+//#include "xscope.h"
 #include "swallow_ethernet.h"
 #include "swallow_comms.h"
+
+/*void xscope_user_init(void)
+{
+  //swallow_xlinkboot_xscope_init();
+  xscope_register(0);
+  xscope_config_io(XSCOPE_IO_BASIC);
+}*/
 
 // If you have a board with the xscope xlink enabled (e.g. the XC-2) then
 // change this define to 0, make sure you also remove the -lxscope from
@@ -136,7 +143,7 @@ int main()
             unsigned tv;
             t :> tv;
             t when timerafter(tv + 0x10000000) :> void;
-            startTransactionClient(x,0xB0D0402,0,0);
+            startTransactionClient(x,0x80010402,0,0);
             endTransactionClient(x);
           }*/
         }

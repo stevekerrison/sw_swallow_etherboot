@@ -15,7 +15,7 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
         <!-- NOTE: For now at least, the routingId needs to be specified as the final value based on the grid
           we'll be controlling. Otherwise the compiler will asign chanend destinations on a NodeID that changes
           when we do the initial configuration of the grid. -->
-        <Node Id="0" InPackageId="0" Type="XS1-L1A" RoutingId="0x0B0D" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
+        <Node Id="0" InPackageId="0" Type="XS1-L1A" RoutingId="0x8001" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
         
           <Boot>
             <Source Location="SPI:bootFlash"/>
@@ -62,7 +62,7 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
 
     <!-- XSCOPE -->
 	<Link Encoding="2wire" Delays="8,8" Flags="SOD">
-	  <LinkEndpoint NodeId="0" Link="XLD"/>
+	  <LinkEndpoint NodeId="0" Link="XLC"/>
 	  <LinkEndpoint RoutingId="0x8000" Chanend="1"/>
 	</Link>
   </Links>
