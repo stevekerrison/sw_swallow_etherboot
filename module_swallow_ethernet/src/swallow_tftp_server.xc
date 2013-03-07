@@ -39,6 +39,15 @@
 
 #define MAX(x,y) ((x < y) ? y : x)
 
+//#define DEBUG
+#ifdef DEBUG
+  #undef DBG
+  #define DBG(x) x;
+#else
+  #undef DBG
+  #define DBG(x)
+#endif
+
 unsigned char cfg_str[8];
 
 unsigned state = READY, cores, block = 0, word, node, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
@@ -151,17 +160,19 @@ static void swallow_init_sync(void)
   /* "Column-major" node iteration so that cores start running in a way
    * that's sympathetic to the dimension-order routing, which starts
    * verically. */
+  DBG(printstrln("SYNC"));
   for (int c = 0; c < sw_ncols; c += 1)
   {
     for (int r = 0; r < sw_nrows; r += 1)
     {
-      unsigned c = getChanend((swallow_lookup(r,c) << 16) | 0x0002);
-      asm("out res[%1],%0"::"r"(sw_nrows),"r"(c));
-      asm("out res[%1],%0"::"r"(sw_ncols),"r"(c));
-      asm("outct res[%0],1"::"r"(c));
-      freeChanend(c);
+      unsigned ce = getChanend((swallow_lookup(r,c) << 16) | 0x0002);
+      asm("out res[%1],%0"::"r"(sw_nrows),"r"(ce));
+      asm("out res[%1],%0"::"r"(sw_ncols),"r"(ce));
+      asm("outct res[%0],1"::"r"(ce));
+      freeChanend(ce);
     }
   }
+  DBG(printstrln("SYNC'd"));
   return;
 }
 
@@ -171,6 +182,7 @@ static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
   {
     if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
     {
+      DBG(printintln(bufpos));
       return 0;
     }
     streamOutWord(ce,word);
@@ -181,8 +193,8 @@ static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
     streamOutWord(ce,crc);
     asm("outct res[%0],1\n"
       "chkct res[%0],1\n"::"r"(ce));
-    node += 1;
-    state = node < cores ? GETOFFSET : END;
+    state = GETOFFSET;
+    DBG(printstrln("Done!"));
   }
   return state != END;
 }
@@ -192,8 +204,14 @@ static int tftp_getoffset(unsigned char rxbuf[], unsigned udp_len)
   if (getword(rxbuf,udp_len,bufpos,bytepos,word))
   {
     node = word;
+    if (node == 0xffffffff)
+    {
+      state = END;
+      return 0;
+    }
     if (node >= cores)
     {
+      DBG(printstrln("BAD CORE OFFSET"));
       swallow_tftp_reset();
       return -3;
     }
@@ -211,6 +229,9 @@ static int tftp_getsize(unsigned char rxbuf[], unsigned udp_len)
     impos = 0;
     freeChanend(ce);
     ce = getChanend((swallow_id(node) << 16) | 0x2);
+    DBG(printstr("["));
+    DBG(printhex((swallow_id(node) << 16) | 0x2));
+    DBG(printstr("]"));
     streamOutWord(ce,ce);
     streamOutWord(ce,imsize);
     state = BOOTING;
@@ -229,6 +250,10 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     unsigned opcode = (rxbuf[42] << 8) | rxbuf[43];
     if (opcode != DATA || newblock != block + 1)
     {
+      DBG(printstrln("BAD BLOCK OR OPCODE"));
+      DBG(printhexln(opcode));
+      DBG(printhexln(newblock));
+      DBG(printhexln(block));
       swallow_tftp_reset();
       return -4;
     }
@@ -239,26 +264,30 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     //Check for 0x5b magic number and version 0 of SGB format
     if (rxbuf[46] != 0x5b || rxbuf[47] != 0)
     {
+      DBG(printstrln("BAD HEADER"));
       swallow_tftp_reset();
       return -4;
     }
     cores = ((rxbuf[50] << 8) | rxbuf[49]);
-    if (cores > ((cfg.boards_w + cfg.boards_h) * SWXLB_CORES_BOARD))
+    if (cores > cfg.boards_w * cfg.boards_h * SWXLB_CORES_BOARD)
     {
+      DBG(printstrln("NOT ENOUGH CORES AVAILABLE"));
       swallow_tftp_reset();
       return -3;
     }
     //TODO: Implement rxbuf[51] (PLL) check and implementation...
     if (rxbuf[48] == 1)
     {
+      DBG(printstr("Reset... "));
       swallow_xlinkboot(cfg.boards_w,cfg.boards_h,1,cfg.position,cfg.PLL,cfg.PLL_len,cfg.reset_port);
+      DBG(printstrln("Done!"));
     }
     node = 0;
     state = GETOFFSET;
     word = 0;
     imsize = 0;
     impos = 0;
-    bufpos = 51;
+    bufpos = 52;
     bytepos = 0;
   }
   while(result > 0)
@@ -268,6 +297,8 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       result = tftp_getoffset(rxbuf,udp_len);
       if (result < 0)
         return result;
+      DBG(printint(node));
+      DBG(printstr("("));
     }
     //Intentional lack of else!
     if (state == GETSIZE)
@@ -275,6 +306,8 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       result = tftp_getsize(rxbuf,udp_len);
       if (result < 0)
         return result;
+      DBG(printhex(imsize));
+      DBG(printstr(")"));
     }
     //Intentional lack of else!
     if (state == BOOTING)
@@ -291,6 +324,7 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
     {
       if (bufpos + 1 < udp_len + 34)
       {
+        DBG(printstrln("TOO MUCH DATA"));
         //We didn't read all the data? Something fishy is going on!
         swallow_tftp_reset();
         return -4;
@@ -364,7 +398,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
     {
       txbuf[42] = 0;
       txbuf[43] = ACK;
-      txbuf[44] = boot_result << 8;
+      txbuf[44] = boot_result >> 8;
       txbuf[45] = boot_result & 0xff;
       //If the data packet isn't full, then we're done!
       if (udp_len < 512 + 4 + 8)
