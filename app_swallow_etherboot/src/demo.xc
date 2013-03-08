@@ -54,21 +54,14 @@
 //out port swallow_rst = XS1_PORT_1D; //I on old, D on new
 //struct xlinkboot_pll_t PLLs[1] = {{-1,0,-1,0x00002700,1,5}};
 struct swallow_xlinkboot_cfg swxlb_cfg = {
-  2,
-  3,
-  1,
-  SWXLB_POS_BOTTOM,
-  {{-1,0,-1,0x00002700,1,5}},
-  1,
-  XS1_PORT_1D //I on old, D on new
+  2, //boards_w
+  3, //boards_h
+  1, //do_reset
+  SWXLB_POS_BOTTOM, //Boot node position
+  {{-1,0,-1,0x00002700,1,5}}, //PLL array
+  1, //PLL array size
+  XS1_PORT_1D //Rest port: I on old, D on new
 };
-
-#if USE_XSCOPE
-void xscope_user_init(void) {
-  xscope_register(0);
-  xscope_config_io(XSCOPE_IO_BASIC);
-}
-#endif
 
 // Port Definitions
 
