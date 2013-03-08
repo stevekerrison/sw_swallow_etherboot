@@ -50,7 +50,7 @@
 
 unsigned char cfg_str[8];
 
-unsigned state = READY, cores, block = 0, word, node, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
+unsigned state = READY, cores, block = 0, word, node = 0, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
 
 static void copy_header(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len)
 {
@@ -152,6 +152,7 @@ static void swallow_tftp_reset()
   bufpos = 46;
   bytepos = 0;
   block = 0;
+  node = 0;
 }
 
 /* Send all the cores dimension data and put the grid into action! */
@@ -203,18 +204,56 @@ static int tftp_getoffset(unsigned char rxbuf[], unsigned udp_len)
 {
   if (getword(rxbuf,udp_len,bufpos,bytepos,word))
   {
-    node = word;
-    if (node == 0xffffffff)
+    if (word == 0xffffffff)
     {
       state = END;
       return 0;
     }
-    if (node >= cores)
+    if (word >= cores)
     {
       DBG(printstrln("BAD CORE OFFSET"));
       swallow_tftp_reset();
       return -3;
     }
+    /* Send an idle image to all unused nodes */
+    while(0 && node != word)
+    {
+      unsigned length, aw;
+      freeChanend(ce);
+      ce = getChanend((swallow_id(node) << 16) | 0x2);
+      asm("bu idleEnd\n"
+      ".align 4\n"
+      "idleStart: getr r0,2\n"
+      "ldc r2,0x8001\n"
+      "shl r2,r2,16\n"
+      "ldc r3,0x0802\n"
+      "or r2,r2,r3\n"
+      "setd res[r0],r2\n"
+      "in r1,res[r0]\n"
+      "in r1,res[r0]\n"
+      "chkct res[r0],1\n"
+      "freet\n"
+      ".align 4\n"
+      "idleEnd: nop\n"
+      "ldap r11, idleStart\n"
+      "mov %0,r11\n"
+      "ldap r11, idleEnd\n"
+      "sub %1,r11,%0\n":"=r"(aw),"=r"(length)::"r11");
+      length >>= 2;
+      streamOutWord(ce,ce);
+      streamOutWord(ce,length);
+      for (int i = 0; i < length; i += 1)
+      {
+        unsigned w;
+        asm("ldw %0,%1[%2]\n":"=r"(w):"r"(aw),"r"(i));
+        streamOutWord(ce,w);
+      }
+      streamOutWord(ce,crc);
+      asm("outct res[%0],1\n"
+      "chkct res[%0],1\n"::"r"(ce));
+      node++;
+    }
+    node = word;
     state = GETSIZE;
     return 1;
   }
