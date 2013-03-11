@@ -195,9 +195,39 @@ static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
     asm("outct res[%0],1\n"
       "chkct res[%0],1\n"::"r"(ce));
     state = GETOFFSET;
+    node++;
     DBG(printstrln("Done!"));
   }
   return state != END;
+}
+
+/* Send an idle image to all unused nodes */
+static void swallow_idle_core()
+{
+  for (; node != word; node += 1)
+  {
+    unsigned size, loc, w;
+    freeChanend(ce);
+    asm("ldap r11,idleprog\n"
+      "mov %0,r11\n"
+      "ldap r11,idleprog_end\n"
+      "sub %0,r11,%0\n"
+      "shr %0,%0,2":"=r"(size):);
+    ce = getChanend((swallow_id(node) << 16) | 0x2);
+    asm("ldap r11,idleprog\n"
+      "mov %0,r11":"=r"(loc)::"r11");
+    asm("out res[%0],%0\n"
+      "out res[%0],%1"::"r"(ce),"r"(size));
+    for (int i = loc; i < loc + (size*4); i += 4)
+    {
+      asm("ldw %0,%1[0]\n"
+        "out res[%2],%0\n":"=r"(w):"r"(i),"r"(ce));
+    }
+    asm("out res[%0],%1\n"::"r"(ce),"r"(crc));
+    asm("outct res[%0],1\n"
+      "chkct res[%0],1\n"::"r"(ce));
+  }
+  return;
 }
 
 static int tftp_getoffset(unsigned char rxbuf[], unsigned udp_len)
@@ -215,45 +245,7 @@ static int tftp_getoffset(unsigned char rxbuf[], unsigned udp_len)
       swallow_tftp_reset();
       return -3;
     }
-    /* Send an idle image to all unused nodes */
-    while(0 && node != word)
-    {
-      unsigned length, aw;
-      freeChanend(ce);
-      ce = getChanend((swallow_id(node) << 16) | 0x2);
-      asm("bu idleEnd\n"
-      ".align 4\n"
-      "idleStart: getr r0,2\n"
-      "ldc r2,0x8001\n"
-      "shl r2,r2,16\n"
-      "ldc r3,0x0802\n"
-      "or r2,r2,r3\n"
-      "setd res[r0],r2\n"
-      "in r1,res[r0]\n"
-      "in r1,res[r0]\n"
-      "chkct res[r0],1\n"
-      "freet\n"
-      ".align 4\n"
-      "idleEnd: nop\n"
-      "ldap r11, idleStart\n"
-      "mov %0,r11\n"
-      "ldap r11, idleEnd\n"
-      "sub %1,r11,%0\n":"=r"(aw),"=r"(length)::"r11");
-      length >>= 2;
-      streamOutWord(ce,ce);
-      streamOutWord(ce,length);
-      for (int i = 0; i < length; i += 1)
-      {
-        unsigned w;
-        asm("ldw %0,%1[%2]\n":"=r"(w):"r"(aw),"r"(i));
-        streamOutWord(ce,w);
-      }
-      streamOutWord(ce,crc);
-      asm("outct res[%0],1\n"
-      "chkct res[%0],1\n"::"r"(ce));
-      node++;
-    }
-    node = word;
+    swallow_idle_core();
     state = GETSIZE;
     return 1;
   }
