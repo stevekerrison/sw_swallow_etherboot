@@ -529,10 +529,10 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
 #endif
   //::
   //printstr("Test started\n");
-  read_sswitch_reg(SWXLB_BOOT_ID,0xd,tmp);
+  /*read_sswitch_reg(SWXLB_BOOT_ID,0xd,tmp);
   printhexln(tmp);
   read_sswitch_reg(SWXLB_BOOT_ID,0xc,tmp);
-  printhexln(tmp);
+  printhexln(tmp);*/
   //::mainloop
   while (1)
   {

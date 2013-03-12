@@ -166,11 +166,18 @@ static void swallow_init_sync(void)
   {
     for (int r = 0; r < sw_nrows; r += 1)
     {
-      unsigned ce = getChanend((swallow_lookup(r,c) << 16) | 0x0002);
+      asm("setd res[%0],%1"::"r"(ce),"r"((swallow_lookup(r,c) << 16) | 0x0002));
       asm("out res[%1],%0"::"r"(sw_nrows),"r"(ce));
       asm("out res[%1],%0"::"r"(sw_ncols),"r"(ce));
+      asm("outct res[%0],2"::"r"(ce)); /* Pause, because we'll send the CT_END lter */
+    }
+  }
+  for (int c = 0; c < sw_ncols; c += 1)
+  {
+    for (int r = 0; r < sw_nrows; r += 1)
+    {
+      asm("setd res[%0],%1"::"r"(ce),"r"((swallow_lookup(r,c) << 16) | 0x0002));
       asm("outct res[%0],1"::"r"(ce));
-      freeChanend(ce);
     }
   }
   DBG(printstrln("SYNC'd"));
@@ -207,13 +214,12 @@ static void swallow_idle_core()
   for (; node != word; node += 1)
   {
     unsigned size, loc, w;
-    freeChanend(ce);
     asm("ldap r11,idleprog\n"
       "mov %0,r11\n"
       "ldap r11,idleprog_end\n"
       "sub %0,r11,%0\n"
       "shr %0,%0,2":"=r"(size):);
-    ce = getChanend((swallow_id(node) << 16) | 0x2);
+    asm("setd res[%0],%1"::"r"(ce),"r"((swallow_id(node) << 16) | 0x2));
     asm("ldap r11,idleprog\n"
       "mov %0,r11":"=r"(loc)::"r11");
     asm("out res[%0],%0\n"
@@ -258,8 +264,7 @@ static int tftp_getsize(unsigned char rxbuf[], unsigned udp_len)
   {
     imsize = word;
     impos = 0;
-    freeChanend(ce);
-    ce = getChanend((swallow_id(node) << 16) | 0x2);
+    asm("setd res[%0],%1"::"r"(ce),"r"((swallow_id(node) << 16) | 0x2));
     DBG(printstr("["));
     DBG(printhex((swallow_id(node) << 16) | 0x2));
     DBG(printstr("]"));
@@ -363,6 +368,9 @@ static int swallow_tftp_boot(unsigned char rxbuf[], unsigned udp_len, struct swa
       else
       {
       unsigned oldblock = block;
+      word = cfg.boards_w * cfg.boards_h * SWXLB_CORES_BOARD;
+      //node += 1;
+      swallow_idle_core();
       swallow_tftp_reset();
       swallow_init_sync();
       return oldblock;
@@ -380,6 +388,10 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
   unsigned opcode = (rxbuf[42] << 8) | rxbuf[43];
   unsigned txbytes;
   copy_header(rxbuf,txbuf, udp_len);
+  if (!ce)
+  {
+    ce = getChanend(0x2); //Get chanend to somewhere useless
+  }
   if (state & IDLE)
   {
     if (state != IDLE)
