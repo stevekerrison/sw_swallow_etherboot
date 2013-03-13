@@ -10,3 +10,4 @@
 *.xmt
 *~
 tmp/
+app_swallow_etherboot/src/swallow_etherboot_conf.h
