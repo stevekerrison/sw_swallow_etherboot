@@ -1,5 +1,7 @@
 /*
- * swallow_etherboot_conf - Configuration file for etherboot
+ * swallow_etherboot_conf_template - Configuration file for etherboot
+ *
+ * COPY ME TO swallow_etherboot_conf.h DO NOT EDIT ME
  *
  * Copyright (C) 2013 Steve Kerrison <github@stevekerrison.com>
  *
