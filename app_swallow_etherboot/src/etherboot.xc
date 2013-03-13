@@ -4,24 +4,11 @@
 // LICENSE.txt and at <http://github.xcore.com/>
 
 /*
- * Demo of swallow ethernet, based on sc_ethernet demo code
+ * Swallow ethernet, providing TFTP services
  *
- * Copyright (C) 2012 Steve Kerrison <github@stevekerrison.com>
+ * Copyright (C) 2012-2013 Steve Kerrison <github@stevekerrison.com>
  *
  */
-
-/*************************************************************************
- *
- * Ethernet MAC Layer Client Test Code
- * IEEE 802.3 MAC Client
- *
- *
- *************************************************************************
- *
- * ARP/ICMP demo
- * Note: Only supports unfragmented IP packets
- *
- *************************************************************************/
 
 #include <xs1.h>
 #include <xclib.h>
@@ -35,13 +22,6 @@
 #include "swallow_ethernet.h"
 #include "swallow_comms.h"
 
-/*void xscope_user_init(void)
-{
-  //swallow_xlinkboot_xscope_init();
-  xscope_register(0);
-  xscope_config_io(XSCOPE_IO_BASIC);
-}*/
-
 // If you have a board with the xscope xlink enabled (e.g. the XC-2) then
 // change this define to 0, make sure you also remove the -lxscope from
 // the build flags in the Makefile
@@ -51,17 +31,11 @@
 
 /* XLinkboot stuff */
 #include "swallow_xlinkboot.h"
-//out port swallow_rst = XS1_PORT_1D; //I on old, D on new
-//struct xlinkboot_pll_t PLLs[1] = {{-1,0,-1,0x00002700,1,5}};
-struct swallow_xlinkboot_cfg swxlb_cfg = {
-  2, //boards_w
-  3, //boards_h
-  1, //do_reset
-  SWXLB_POS_BOTTOM, //Boot node position
-  {{-1,0,-1,0x00002700,1,5}}, //PLL array
-  1, //PLL array size
-  XS1_PORT_1D //Rest port: I on old, D on new
-};
+
+/* Config is now in a separate file to keep things tidy */
+#include "swallow_etherboot_conf.h"
+
+
 
 // Port Definitions
 
@@ -116,9 +90,7 @@ int main()
       //::ethernet
       on ETHERNET_DEFAULT_TILE:
       {
-        char mac_address[6] = {0x00,0x22,0x97,0x5b,0x00,0x01};
-        //otp_board_info_get_mac(otp_ports, 0, mac_dummy);
-        //swallow_xlinkboot(2,3,1,SWXLB_POS_BOTTOM,PLLs,1,swallow_rst);
+        char mac_address[6] = SWALLOW_MAC;
         eth_phy_reset(eth_rst);
         smi_init(smi);
         eth_phy_config(1, smi);
