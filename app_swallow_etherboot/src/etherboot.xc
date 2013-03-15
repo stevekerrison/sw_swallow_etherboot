@@ -73,7 +73,7 @@ void grid_example(streaming chanend x)
     //We assume we are format = 0x4, because we're lazy in this demo
     for (int i = 0; i < length; i += 1)
     {
-      streamInWord(x,w);
+      x <: w;
       printhexln(byterev(w));
     }
     endTransactionServer(x);
@@ -82,8 +82,8 @@ void grid_example(streaming chanend x)
 
 int main()
 {
-  chan rx[1], tx[1], tx_into_swallow;
-  streaming chan rx_from_swallow;
+  chan rx[1], tx[1];
+  streaming chan rx_from_swallow, tx_into_swallow;
   chan x;
   par
     {
@@ -102,7 +102,7 @@ int main()
       }
       on ETHERNET_DEFAULT_TILE : {
         par {
-          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow,swxlb_cfg);
+          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swxlb_cfg);
           /*{
             timer t;
             unsigned tv;
