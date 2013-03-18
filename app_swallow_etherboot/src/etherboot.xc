@@ -64,6 +64,27 @@ mii_interface_t mii =
 };
 ethernet_reset_interface_t eth_rst = ETHERNET_DEFAULT_RESET_INTERFACE_INIT;
 
+void outbound_example(streaming chanend x)
+{
+  timer t;
+  /* Normally you'd establish what the remote ID of X would be,
+  * but seeing as we have connected it 1-1 we don't have
+  * to worry */
+  unsigned tv, dst = getRemoteStreamingChanendId(x);
+  while (1)
+  {
+    t :> tv;
+    t when timerafter(tv + 0x20000000) :> void;
+    startTransactionClient(x,dst,4,16);
+    for (int i = 0; i < 16; i += 1)
+    {
+      x <: 0xbabecafe;
+    }
+    endTransactionClient(x);
+  }
+  
+}
+
 void grid_example(streaming chanend x)
 {
   unsigned dst, format, length, w;
@@ -79,6 +100,7 @@ void grid_example(streaming chanend x)
     endTransactionServer(x);
   }
 }
+
 
 int main()
 {
@@ -103,6 +125,7 @@ int main()
       on ETHERNET_DEFAULT_TILE : {
         par {
           swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swxlb_cfg);
+          outbound_example(rx_from_swallow);
           /*{
             timer t;
             unsigned tv;

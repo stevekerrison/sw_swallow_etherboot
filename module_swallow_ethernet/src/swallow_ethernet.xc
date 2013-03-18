@@ -171,7 +171,27 @@ int is_valid_arp_packet(const unsigned char rxbuf[], int nbytes)
   }
   if (((rxbuf, const unsigned[])[5] & 0xFFFF) != 0x0100)
   {
-    //printstr("Not a request\n");
+    /* Not a request, so we definitely don't need to reply, but maybe we should cache it! */
+    if (((rxbuf, const unsigned[])[5] & 0xFFFF) == 0x0200)
+    {
+      printstrln("ARP REPLY/ANNOUNCE");
+      for (int i = 0; i < ARP_CACHE_SIZE; i += 1)
+      {
+        if ((arp_cache_table[i].ip,unsigned) == 0)
+        {
+          for (int j = 0; j < 4; j += 1)
+          {
+            arp_cache_table[i].ip[j] = rxbuf[28 + j];
+            arp_cache_table[i].mac[j] = rxbuf[22 + j];
+          }
+          arp_cache_table[i].mac[4] = rxbuf[22 + 4];
+          arp_cache_table[i].mac[5] = rxbuf[22 + 5];
+          printstrln("ARP CACHE UPDATED");
+          break;
+        }
+      }
+      /* If the ARP cache is full then we simply ignore the announce/reply */
+    }
     return 0;
   }
   for (int i = 0; i < 4; i++)
@@ -404,7 +424,7 @@ int is_valid_udp_packet(const unsigned char rxbuf[], int nbytes)
 }
 
 #pragma unsafe arrays
-static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend grid)
+static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, streaming chanend grid)
 {
   unsigned dst, format, len, udp_len;
   if ((frame,unsigned short[])[21] != 0x7ada) //Does UDP payload have "D47A" at the front?
@@ -429,14 +449,14 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend g
   {
     for (int i = 0; i < len; i += 1)
     {
-      streamOutByte(grid,frame[52+i]);
+      grid <: frame[52+i];
     }
   }
   else if (format == 0x4)
   {
     for (int i = 0; i < len; i += 1)
     {
-      streamOutWord(grid,(frame,unsigned [])[13+i]);
+      grid <: (frame,unsigned [])[13+i];
     }
   }
   endTransactionClient(grid);
@@ -444,7 +464,7 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, chanend g
 }
 
 static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF_SIZE],
-  unsigned int nbytes, unsigned int src_port, chanend grid_tx, chanend tx,
+  unsigned int nbytes, unsigned int src_port, streaming chanend grid_tx, chanend tx,
   struct swallow_xlinkboot_cfg &cfg)
 {
 #ifdef CONFIG_LITE
@@ -494,18 +514,82 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
   return;
 }
 
+#pragma unsafe arrays
 #pragma select handler
-void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned int txbuf[BUF_SIZE])
+void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BUF_SIZE])
 {
-  unsigned dst, format, length;
+  unsigned dst, format, length, checksum, ip_len, udp_len, data_len;
+  const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
   startTransactionServer(grid_rx,dst,format,length);
-  printstrln("WOO");
+  printstrln("GRID OUTBOUND TEST");
+  data_len = format * length;
+  udp_len = 18 + data_len;
+  ip_len = 20 + udp_len;
+  for (int i = 0; i < 6; i += 1)
+  {
+    txbuf[i + 6] = own_mac_addr[i];
+    txbuf[i] = arp_cache_table[0].mac[i];
+  }
+  for (int i = 0; i < 4; i += 1)
+  {
+    txbuf[26 + i] = own_ip_addr[i];
+    txbuf[30 + i] = arp_cache_table[0].ip[i];
+  }
+  txbuf[12] = 0x08;
+  txbuf[13] = 0x00;
+  txbuf[14] = 0x45;
+  txbuf[15] = 0x00;
+  txbuf[16] = ip_len >> 8;
+  txbuf[17] = ip_len & 0xff;
+  txbuf[18] = 0x00;
+  txbuf[19] = 0x00;
+  txbuf[20] = 0x40;
+  txbuf[21] = 0x00;
+  txbuf[22] = 0x40;
+  txbuf[23] = 0x11;
+  txbuf[24] = 0x00;
+  txbuf[25] = 0x00;
+  checksum = checksum_ip(txbuf);
+  txbuf[24] = checksum >> 8;
+  txbuf[25] = checksum & 0xff; 
+  txbuf[34] = 0x5b;
+  txbuf[35] = 0x5b;
+  txbuf[36] = 0x5b;
+  txbuf[37] = 0x5b;
+  txbuf[38] = udp_len >> 8;
+  txbuf[39] = udp_len & 0xff;
+  txbuf[40] = 0x00;
+  txbuf[41] = 0x00;
+  txbuf[42] = 0xda;
+  txbuf[43] = 0x7a;
+  (txbuf,unsigned[])[11] = dst;
+  (txbuf,unsigned[])[12] = (format << 24) | (length & 0x00ffffff);
+  if (format == 4)
+  {
+    for (int i = 0; i < length; i += 1)
+    {
+      grid_rx :> (txbuf,unsigned[])[13 + i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < length; i += 1)
+    {
+      grid_rx :> txbuf[52 + i];
+    }
+  }
   endTransactionServer(grid_rx);
+  //Throw away if we don't have anywhere to send it
+  if ((arp_cache_table[0].ip,unsigned) != 0)
+  {
+    printstrln("TXing");
+    mac_tx(tx, (txbuf,unsigned[]), ip_len + 14, ETH_BROADCAST);
+  }
   return;
 }
 
 
-void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend grid_rx,
+void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streaming chanend grid_rx,
   struct swallow_xlinkboot_cfg &cfg)
 {
   unsigned int rxbuf[BUF_SIZE];
@@ -543,7 +627,7 @@ void swallow_ethernet(chanend tx, chanend rx, chanend grid_tx, streaming chanend
       case mac_rx(rx, (rxbuf,char[]), nbytes, src_port):
         packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx, cfg);
         break;
-      case grid_outbound(grid_rx, tx, txbuf):
+      case grid_outbound(grid_rx, tx, (txbuf,unsigned char[])):
         break;
     }
   }
