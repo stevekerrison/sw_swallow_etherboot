@@ -125,7 +125,7 @@ int main()
       on ETHERNET_DEFAULT_TILE : {
         par {
           swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swxlb_cfg);
-          outbound_example(rx_from_swallow);
+          //outbound_example(rx_from_swallow);
           /*{
             timer t;
             unsigned tv;

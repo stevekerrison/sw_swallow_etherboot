@@ -433,6 +433,11 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, streaming
   }
   udp_len = byterev((frame,unsigned short[])[19]) >> 16;
   dst = byterev((frame,unsigned [])[11]);
+  /* Support contiguous IDs */
+  if ((dst & 0xff) == 0)
+  {
+    dst = swallow_cvt_chanend((dst | 0x2));
+  }
   format = byterev((frame,unsigned [])[12]);
   len = format & 0x00ffffff;
   format >>= 24;
@@ -444,7 +449,10 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, streaming
   {
     len = (udp_len - 18) / format;
   }
+  printstrln("START CLIENT");
+  printintln(len);
   startTransactionClient(grid,dst,format,len);
+  printstrln("CLIENT STARTED");
   if (format == 0x1)
   {
     for (int i = 0; i < len; i += 1)
@@ -456,10 +464,13 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, streaming
   {
     for (int i = 0; i < len; i += 1)
     {
-      grid <: (frame,unsigned [])[13+i];
+      grid <: byterev((frame,unsigned [])[13+i]);
+      printstrln("WORD");
     }
   }
+  printstrln("CLOSE");
   endTransactionClient(grid);
+  printstrln("DONE");
   return 1;
 }
 
@@ -562,13 +573,14 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
   txbuf[41] = 0x00;
   txbuf[42] = 0xda;
   txbuf[43] = 0x7a;
-  (txbuf,unsigned[])[11] = dst;
-  (txbuf,unsigned[])[12] = (format << 24) | (length & 0x00ffffff);
+  (txbuf,unsigned[])[11] = byterev(dst);
+  (txbuf,unsigned[])[12] = byterev((format << 24) | (length & 0x00ffffff));
   if (format == 4)
   {
     for (int i = 0; i < length; i += 1)
     {
       grid_rx :> (txbuf,unsigned[])[13 + i];
+      (txbuf,unsigned[])[13 + i] = byterev((txbuf,unsigned[])[13 + i]);
     }
   }
   else
@@ -579,11 +591,15 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
     }
   }
   endTransactionServer(grid_rx);
+  for (int i = ip_len + 14; i < 60; i += 1)
+  {
+    txbuf[i] = 0x0;
+  }
   //Throw away if we don't have anywhere to send it
   if ((arp_cache_table[0].ip,unsigned) != 0)
   {
     printstrln("TXing");
-    mac_tx(tx, (txbuf,unsigned[]), ip_len + 14, ETH_BROADCAST);
+    mac_tx(tx, (txbuf,unsigned[]), (60 > (ip_len + 14)) ? 60 : (ip_len + 14), ETH_BROADCAST);
   }
   return;
 }
@@ -606,7 +622,7 @@ void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streami
   //::get-macaddr
   mac_get_macaddr(tx, own_mac_addr);
   //::
-
+  printhexln(getLocalStreamingChanendId(grid_rx));
   //::setup-filter
 #ifdef CONFIG_FULL
   mac_set_custom_filter(rx, 0x1);
