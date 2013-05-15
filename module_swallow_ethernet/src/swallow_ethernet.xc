@@ -57,8 +57,8 @@ static int add_arp_cache(unsigned int buf[])
         arp_cache_table[i].ip[j] = (buf,unsigned char[])[38+j];
       }
       (arp_cache_table[i].mac,unsigned[])[0] = buf[0];
-      arp_cache_table[i].mac[4] = (buf,unsigned char[])buf[4];
-      arp_cache_table[i].mac[5] = (buf,unsigned char[])buf[5];
+      arp_cache_table[i].mac[4] = (buf,unsigned char[])[4];
+      arp_cache_table[i].mac[5] = (buf,unsigned char[])[5];
       return 1;
     }
   }
