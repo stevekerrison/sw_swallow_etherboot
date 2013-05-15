@@ -57,8 +57,8 @@ static int add_arp_cache(unsigned int buf[])
         arp_cache_table[i].ip[j] = (buf,unsigned char[])[38+j];
       }
       (arp_cache_table[i].mac,unsigned[])[0] = buf[0];
-      arp_cache_table[i].mac[4] = buf[4];
-      arp_cache_table[i].mac[5] = buf[5];
+      arp_cache_table[i].mac[4] = (buf,unsigned char[])buf[4];
+      arp_cache_table[i].mac[5] = (buf,unsigned char[])buf[5];
       return 1;
     }
   }
@@ -530,6 +530,7 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
 void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BUF_SIZE])
 {
   unsigned dst, format, length, checksum, ip_len, udp_len, data_len;
+  static unsigned short idtf = 1;
   const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
   startTransactionServer(grid_rx,dst,format,length);
   printstrln("GRID OUTBOUND TEST");
@@ -552,8 +553,8 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
   txbuf[15] = 0x00;
   txbuf[16] = ip_len >> 8;
   txbuf[17] = ip_len & 0xff;
-  txbuf[18] = 0x00;
-  txbuf[19] = 0x00;
+  txbuf[18] = idtf >> 8;
+  txbuf[19] = (idtf++) & 0xff;
   txbuf[20] = 0x40;
   txbuf[21] = 0x00;
   txbuf[22] = 0x40;
