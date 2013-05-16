@@ -525,6 +525,24 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
   return;
 }
 
+#pragma select handler
+void grid_printer(streaming chanend grid_print)
+{
+  unsigned dst, format, length;
+  unsigned char buf[IO_REDIRECT_BUF + 1];
+  int i;
+  startTransactionServer(grid_print,dst,format,length);
+  swallowAssert(format == 1 && length <= IO_REDIRECT_BUF);
+  for (i = 0; i < length; i += 1)
+  {
+    grid_print :> buf[i];
+  }
+  buf[i] = '\0';
+  printstr(buf);
+  endTransactionServer(grid_print);
+  return;
+}
+
 #pragma unsafe arrays
 #pragma select handler
 void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BUF_SIZE])
@@ -607,7 +625,7 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
 
 
 void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streaming chanend grid_rx,
-  struct swallow_xlinkboot_cfg &cfg)
+  streaming chanend grid_print, struct swallow_xlinkboot_cfg &cfg)
 {
   unsigned int rxbuf[BUF_SIZE];
   unsigned int txbuf[BUF_SIZE];
@@ -624,6 +642,7 @@ void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streami
   mac_get_macaddr(tx, own_mac_addr);
   //::
   printhexln(getLocalStreamingChanendId(grid_rx));
+  printhexln(getLocalStreamingChanendId(grid_print));
   //::setup-filter
 #ifdef CONFIG_FULL
   mac_set_custom_filter(rx, 0x1);
@@ -645,6 +664,8 @@ void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streami
         packet_received(rxbuf, txbuf, nbytes, src_port, grid_tx, tx, cfg);
         break;
       case grid_outbound(grid_rx, tx, (txbuf,unsigned char[])):
+        break;
+      case grid_printer(grid_print):
         break;
     }
   }

@@ -17,4 +17,4 @@
 //::
 
 void swallow_ethernet(chanend rx, chanend tx, streaming chanend grid_tx, streaming chanend grid_rx,
-  struct swallow_xlinkboot_cfg &cfg);
+  streaming chanend grid_print, struct swallow_xlinkboot_cfg &cfg);

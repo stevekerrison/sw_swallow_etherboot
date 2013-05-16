@@ -105,7 +105,7 @@ void grid_example(streaming chanend x)
 int main()
 {
   chan rx[1], tx[1];
-  streaming chan rx_from_swallow, tx_into_swallow;
+  streaming chan rx_from_swallow, tx_into_swallow, swallow_print;
   chan x;
   par
     {
@@ -124,7 +124,7 @@ int main()
       }
       on ETHERNET_DEFAULT_TILE : {
         par {
-          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swxlb_cfg);
+          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swallow_print, swxlb_cfg);
           //outbound_example(rx_from_swallow);
           /*{
             timer t;
