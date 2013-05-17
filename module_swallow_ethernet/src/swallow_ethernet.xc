@@ -528,6 +528,7 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
 #pragma select handler
 void grid_printer(streaming chanend grid_print)
 {
+  static unsigned last_dst = 0;
   unsigned dst, format, length;
   unsigned char buf[IO_REDIRECT_BUF + 1];
   int i;
@@ -538,6 +539,13 @@ void grid_printer(streaming chanend grid_print)
     grid_print :> buf[i];
   }
   buf[i] = '\0';
+  if (dst != last_dst)
+  {
+    printstr("\n[");
+    printhex(dst);
+    printstr("]: ");
+    last_dst = dst;
+  }
   printstr(buf);
   endTransactionServer(grid_print);
   return;
