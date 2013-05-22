@@ -529,24 +529,26 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
 void grid_printer(streaming chanend grid_print)
 {
   static unsigned last_dst = 0;
-  unsigned dst, format, length;
+  unsigned dst, format, length, bidx, i;
   unsigned char buf[IO_REDIRECT_BUF + 1];
-  int i;
   startTransactionServer(grid_print,dst,format,length);
-  swallowAssert(format == 1 && length <= IO_REDIRECT_BUF);
-  for (i = 0; i < length; i += 1)
-  {
-    grid_print :> buf[i];
-  }
-  buf[i] = '\0';
-  if (dst != last_dst)
+  swallowAssert(format == 1);
+  if (dst & 0xffff0000 != last_dst)
   {
     printstr("\n[");
     printhex(dst);
     printstr("]: ");
-    last_dst = dst;
+    last_dst = dst & 0xffff0000;
   }
-  printstr(buf);
+  for (i = 0; i < length;)
+  {
+    for (bidx = 0; bidx < IO_REDIRECT_BUF && i < length; bidx += 1, i += 1)
+    {
+      grid_print :> buf[i];
+    }
+    buf[i] = '\0';
+    printstr(buf);
+  }
   endTransactionServer(grid_print);
   return;
 }
