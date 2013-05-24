@@ -651,7 +651,9 @@ void swallow_ethernet(chanend tx, chanend rx, streaming chanend grid_tx, streami
   //::get-macaddr
   mac_get_macaddr(tx, own_mac_addr);
   //::
+  printstr("RX: ");
   printhexln(getLocalStreamingChanendId(grid_rx));
+  printstr("PRINT: ");
   printhexln(getLocalStreamingChanendId(grid_print));
   //::setup-filter
 #ifdef CONFIG_FULL

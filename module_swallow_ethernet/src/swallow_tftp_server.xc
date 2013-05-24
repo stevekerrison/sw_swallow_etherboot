@@ -190,7 +190,7 @@ static int tftp_booting(unsigned char rxbuf[], unsigned udp_len)
   {
     if (!getword(rxbuf,udp_len,bufpos,bytepos,word))
     {
-      DBG(printintln(bufpos));
+      //DBG(printintln(bufpos));
       return 0;
     }
     streamOutWord(ce,word);
@@ -214,6 +214,10 @@ static void swallow_idle_core()
   for (; node != word; node += 1)
   {
     unsigned size, loc, w;
+    DBG(printstr("Idle: ");\
+    printintln(node);\
+    printchar(' ');\
+    printhexln(swallow_id(node)););
     asm("ldap r11,idleprog\n"
       "mov %0,r11\n"
       "ldap r11,idleprog_end\n"
@@ -460,8 +464,6 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       txbytes = prep_header(txbuf,5);
     }
     mac_tx(tx, (txbuf,unsigned []), txbytes, ETH_BROADCAST);
-    
-    
   }
   return;
 }
