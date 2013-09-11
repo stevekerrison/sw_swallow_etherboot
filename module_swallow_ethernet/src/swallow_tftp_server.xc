@@ -50,7 +50,8 @@
 
 unsigned char cfg_str[8];
 
-unsigned state = READY, cores, block = 0, word, node = 0, ce = 0, crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos;
+unsigned state = READY, cores, block = 0, word, node = 0, ce = 0,
+  crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos, corecount, gridcores;
 
 static void copy_header(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len)
 {
@@ -123,6 +124,7 @@ void swallow_tftp_init_cfgstr(struct swallow_xlinkboot_cfg &cfg)
     if (boards_h[i] == '\0')
       break;
   }
+  gridcores = cfg.boards_w * cfg.boards_h * SWXLB_CORES_BOARD;
   return;
 }
 
@@ -153,6 +155,7 @@ static void swallow_tftp_reset()
   bytepos = 0;
   block = 0;
   node = 0;
+  corecount = 0;
 }
 
 /* Send all the cores dimension data and put the grid into action! */
@@ -249,7 +252,7 @@ static int tftp_getoffset(unsigned char rxbuf[], unsigned udp_len)
       state = END;
       return 0;
     }
-    if (word >= cores)
+    if (word >= gridcores)
     {
       DBG(printstrln("BAD CORE OFFSET"));
       swallow_tftp_reset();
