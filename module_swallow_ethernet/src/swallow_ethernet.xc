@@ -560,8 +560,7 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
   unsigned dst, format, length, checksum, ip_len, udp_len, data_len;
   static unsigned short idtf = 1;
   const unsigned char own_ip_addr[4] = OWN_IP_ADDRESS;
-  startTransactionServer(grid_rx,dst,format,length);
-  printstrln("GRID OUTBOUND TEST");
+  startBurstServer(grid_rx,dst,format,length);
   data_len = format * length;
   udp_len = 18 + data_len;
   ip_len = 20 + udp_len;
@@ -619,7 +618,7 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
       grid_rx :> txbuf[52 + i];
     }
   }
-  endTransactionServer(grid_rx);
+  endBurstServer(grid_rx);
   for (int i = ip_len + 14; i < 60; i += 1)
   {
     txbuf[i] = 0x0;
@@ -627,7 +626,7 @@ void grid_outbound(streaming chanend grid_rx, chanend tx, unsigned char txbuf[BU
   //Throw away if we don't have anywhere to send it
   if ((arp_cache_table[0].ip,unsigned) != 0)
   {
-    printstrln("TXing");
+    //printstrln("TXing");
     mac_tx(tx, (txbuf,unsigned[]), (60 > (ip_len + 14)) ? 60 : (ip_len + 14), ETH_BROADCAST);
   }
   return;
