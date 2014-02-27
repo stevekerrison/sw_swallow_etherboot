@@ -474,6 +474,98 @@ static int handle_udp_5b5b(unsigned char frame[], unsigned frame_size, streaming
   return 1;
 }
 
+#pragma unsafe arrays
+void udp_copy_header(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len)
+{
+  udp_len += 38;
+  for (int i = 0; i < 6; i++)
+  {
+    txbuf[i] = rxbuf[6+i];
+    txbuf[6+i] = rxbuf[i];
+  }
+  for (int i = 12; i < 24; i += 1)
+  {
+    txbuf[i] = rxbuf[i];
+  }
+  txbuf[24] = 0;
+  txbuf[25] = 0;
+  for (int i = 26; i < 30; i += 1)
+  {
+    txbuf[i] = rxbuf[4+i];
+    txbuf[4+i] = rxbuf[i];
+  }
+  txbuf[34] = rxbuf[36];
+  txbuf[35] = rxbuf[37];
+  txbuf[36] = rxbuf[34];
+  txbuf[37] = rxbuf[35];
+  for (int i = 38; i < 40; i += 1)
+  {
+    txbuf[i] = rxbuf[i];
+  }
+  txbuf[40] = 0;
+  txbuf[41] = 0;
+  txbuf[38] = 0;
+  txbuf[39] = 8;
+  txbuf[17] = 20;
+  return;
+}
+
+#pragma unsafe arrays
+unsigned udp_prep_header(unsigned char txbuf[], unsigned payload_len)
+{
+  unsigned udp_len = 8 + payload_len, frame_size = 20 + udp_len;
+  unsigned ip_checksum;
+  txbuf[38] = udp_len >> 8;
+  txbuf[39] = udp_len & 0xff;
+  txbuf[16] = frame_size >> 8;
+  txbuf[17] = frame_size & 0xff;
+  ip_checksum = checksum_ip(txbuf);
+  txbuf[24] = ip_checksum >> 8;
+  txbuf[25] = ip_checksum & 0xff;
+  return MAX(60,frame_size + 14);
+}
+
+void handle_debug(unsigned char rxbuf[], unsigned char txbuf[],
+  unsigned udp_len, chanend tx, struct swallow_xlinkboot_cfg &cfg) {
+  static unsigned short coreidx = 0;
+  unsigned ncores = cfg.boards_w * cfg.boards_h * SWXLB_CORES_BOARD, txbytes;
+  unsigned maxcores_payload =
+    DEBUG_PC_PAYLOAD_LIMIT / sizeof(struct swallow_debug_pc);
+  int i;
+  udp_copy_header(rxbuf,txbuf,udp_len);
+  for (i = 0; coreidx < ncores && i < maxcores_payload;
+    i += 1, coreidx += 1) {
+    int offset = 42 + (i * sizeof(struct swallow_debug_pc));
+    unsigned short sid = swallow_id(coreidx);
+    //Logical ID
+    txbuf[offset++] = coreidx >> 8;
+    txbuf[offset++] = coreidx & 0xff;
+    //Node ID
+    txbuf[offset++] = sid >> 8;
+    txbuf[offset++] = sid & 0xff;
+    //JTAG ID
+    txbuf[offset++] = 0;
+    txbuf[offset++] = 0;
+    //Reserved
+    txbuf[offset++] = 0;
+    txbuf[offset++] = 0;
+    //Thread PCs
+    for (int t = 0; t < 8; t += 1) {
+      unsigned pc;
+      read_sswitch_reg(sid,0x40 + t,pc);
+      for (int b = 3; b >= 0; b -= 1) {
+        txbuf[offset++] = (pc >> (8 * b)) & 0xff;
+      }
+    }
+  }
+  if (coreidx >= ncores) {
+    //Reset coreidx if we reached end of cores in this debug packet
+    coreidx = 0;
+  }
+  txbytes = udp_prep_header(txbuf,i * sizeof(struct swallow_debug_pc));
+  mac_tx(tx, (txbuf,unsigned []), txbytes, ETH_BROADCAST);
+}
+
 static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF_SIZE],
   unsigned int nbytes, unsigned int src_port, streaming chanend grid_tx, chanend tx,
   struct swallow_xlinkboot_cfg &cfg)
@@ -517,6 +609,9 @@ static void packet_received(unsigned int rxbuf[BUF_SIZE], unsigned int txbuf[BUF
       case 0x5b5b:  //5wallow Board I/O
         handle_udp_5b5b((rxbuf,char[]), nbytes, grid_tx);
         break;
+      case 0x5bdb:
+        handle_debug((rxbuf,unsigned char[]), (txbuf, unsigned char[]), udp_len, tx, cfg);
+        break;
       default:
         //Nothing to do
         break;
@@ -533,7 +628,7 @@ void grid_printer(streaming chanend grid_print)
   unsigned char buf[IO_REDIRECT_BUF + 1];
   startTransactionServer(grid_print,dst,format,length);
   swallowAssert(format == 1);
-  if (dst & 0xffff0000 != last_dst)
+  if ((dst & 0xffff0000) != last_dst)
   {
     printstr("\n[");
     printhex(dst);

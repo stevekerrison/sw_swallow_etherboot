@@ -37,8 +37,6 @@
 #define ACK       4
 #define ERROR     5
 
-#define MAX(x,y) ((x < y) ? y : x)
-
 //#define DEBUG
 #ifdef DEBUG
   #undef DBG
@@ -52,55 +50,6 @@ unsigned char cfg_str[8];
 
 unsigned state = READY, cores, block = 0, word, node = 0, ce = 0,
   crc = 0xd15ab1e, imsize, impos, bufpos = 46, bytepos, corecount, gridcores;
-
-static void copy_header(unsigned char rxbuf[], unsigned char txbuf[], unsigned udp_len)
-{
-  udp_len += 38;
-  for (int i = 0; i < 6; i++)
-  {
-    txbuf[i] = rxbuf[6+i];
-    txbuf[6+i] = rxbuf[i];
-  }
-  for (int i = 12; i < 24; i += 1)
-  {
-    txbuf[i] = rxbuf[i];
-  }
-  txbuf[24] = 0;
-  txbuf[25] = 0;
-  for (int i = 26; i < 30; i += 1)
-  {
-    txbuf[i] = rxbuf[4+i];
-    txbuf[4+i] = rxbuf[i];
-  }
-  txbuf[34] = rxbuf[36];
-  txbuf[35] = rxbuf[37];
-  txbuf[36] = rxbuf[34];
-  txbuf[37] = rxbuf[35];
-  for (int i = 38; i < 40; i += 1)
-  {
-    txbuf[i] = rxbuf[i];
-  }
-  txbuf[40] = 0;
-  txbuf[41] = 0;
-  txbuf[38] = 0;
-  txbuf[39] = 8;
-  txbuf[17] = 20;
-  return;
-}
-
-unsigned prep_header(unsigned char txbuf[], unsigned payload_len)
-{
-  unsigned udp_len = 8 + payload_len, frame_size = 20 + udp_len;
-  unsigned ip_checksum;
-  txbuf[38] = udp_len >> 8;
-  txbuf[39] = udp_len & 0xff;
-  txbuf[16] = frame_size >> 8;
-  txbuf[17] = frame_size & 0xff;
-  ip_checksum = checksum_ip(txbuf);
-  txbuf[24] = ip_checksum >> 8;
-  txbuf[25] = ip_checksum & 0xff;
-  return MAX(60,frame_size + 14);
-}
 
 void swallow_tftp_init_cfgstr(struct swallow_xlinkboot_cfg &cfg)
 {
@@ -394,7 +343,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
   static unsigned state = IDLE;
   unsigned opcode = (rxbuf[42] << 8) | rxbuf[43];
   unsigned txbytes;
-  copy_header(rxbuf,txbuf, udp_len);
+  udp_copy_header(rxbuf,txbuf, udp_len);
   if (!ce)
   {
     ce = getChanend(0x2); //Get chanend to somewhere useless
@@ -421,7 +370,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       }
       txbuf[46+i++] = '\n';
       txbuf[46+i] = '\0';
-      txbytes = prep_header(txbuf,i+4);
+      txbytes = udp_prep_header(txbuf,i+4);
       mac_tx(tx, (txbuf,unsigned []), txbytes, ETH_BROADCAST);
       //TODO: Handle the ACK that comes back from this RRQ
     }
@@ -432,7 +381,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       txbuf[43] = ACK;
       txbuf[44] = 0;
       txbuf[45] = 0;
-      txbytes = prep_header(txbuf,4);
+      txbytes = udp_prep_header(txbuf,4);
       mac_tx(tx, (txbuf,unsigned []), txbytes, ETH_BROADCAST);
     }
   }
@@ -455,7 +404,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       {
         state = IDLE;
       }
-      txbytes = prep_header(txbuf,4);
+      txbytes = udp_prep_header(txbuf,4);
     }
     else
     {
@@ -464,7 +413,7 @@ void swallow_tftp_server(unsigned char rxbuf[], unsigned char txbuf[], unsigned 
       txbuf[44] = 0;
       txbuf[45] = -boot_result;
       txbuf[46] = '\0';
-      txbytes = prep_header(txbuf,5);
+      txbytes = udp_prep_header(txbuf,5);
     }
     mac_tx(tx, (txbuf,unsigned []), txbytes, ETH_BROADCAST);
   }

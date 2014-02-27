@@ -106,7 +106,6 @@ int main()
 {
   chan rx[1], tx[1];
   streaming chan rx_from_swallow, tx_into_swallow, swallow_print;
-  chan x;
   par
     {
       //::ethernet
