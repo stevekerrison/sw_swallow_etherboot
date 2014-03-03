@@ -552,7 +552,7 @@ void handle_debug(unsigned char rxbuf[], unsigned char txbuf[],
     //Thread PCs
     for (int t = 0; t < 8; t += 1) {
       unsigned pc;
-      read_sswitch_reg(sid,0x40 + t,pc);
+      read_pswitch_reg(sid,0x40 + t,pc);
       for (int b = 3; b >= 0; b -= 1) {
         txbuf[offset++] = (pc >> (8 * b)) & 0xff;
       }
