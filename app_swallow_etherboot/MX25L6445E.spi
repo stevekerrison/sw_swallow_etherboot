@@ -1,0 +1,24 @@
+2506445, /* 1. libflash device ID - hopefully unique*/
+256, /* 2. Page size */
+32768, /* 3. Number of pages */
+3, /* 4. Address size - 24 bit address */
+4, /* 5. Clock divider */
+0x9f , /* 6. RDID cmd */
+0, /* 7. RDID dummy bytes */
+3, /* 8. RDID data size in bytes */
+0xc22017 , /* 9. RDID manufacturer ID */
+0x20 , /* 10. SE cmd */
+4096, /* 11. SE full sector erase */
+0x06 , /* 12. WREN cmd */
+0x04 , /* 13. WRDI cmd */
+PROT_TYPE_SR , /* 14. Protection type SR - protect all area against write. */
+{{0x0c,0x0},{0,0}}, /* 15. SR protect and unprotect cmds */
+0x02 , /* 16. PP cmd */
+0x0b , /* 17. READ cmd --- this is the fast version with one dummy byte --- slow is 0x03*/
+1, /* 18. READ dummy bytes*/
+SECTOR_LAYOUT_REGULAR , /* 19. Sector layout */
+{32768 ,{0 ,{0}}} , /* 20. Sector sizes - is 4kB = 32kb */
+0x05, /* 21. RDSR cmd*/
+0x01 , /* 22. WRSR cmd */
+0x01 , /* 23. WIP bit mask */
+
