@@ -5,18 +5,55 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
   <Type>Board</Type>
   <Name>Swallow Ethernet Board with 256Mbit SDRAM</Name>
   
-    <Declarations>
+  <Declarations>
     <Declaration>core stdcore[1]</Declaration>
   </Declarations>
 
   <Packages>
     <Package id="0" Type="XS1-L1A-TQ128">
       <Nodes>
-        <!-- NOTE: For now at least, the routingId needs to be specified as the final value based on the grid
-          we'll be controlling. Otherwise the compiler will asign chanend destinations on a NodeID that changes
-          when we do the initial configuration of the grid. -->
-        <Node Id="0" InPackageId="0" Type="XS1-L1A" RoutingId="0x8001" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
-        
+        <!-- 
+           The routing ID depends on the position of the board WRT the Swallow grid.
+           0x0001 is top-left, 0x0005 is the next one, then 0x0009, 0x000d, ... , 0x00fd
+           Routing along the bottom is possible too, where the top 8-bits are the same
+           as the bottom row of cores. Top-attached boards are more flexible though, as
+           the height of the grid is irrelevant to their correct operation.
+        -->
+        <Node Id="0" InPackageId="0" Type="XS1-L1A" RoutingId="0x0001" Oscillator="25MHz" ReferenceFrequency="100MHz" SystemFrequency="500MHz">
+          <RoutingTable>
+            <Bits>
+              <!--
+                All traffic goes into grid except XSCOPE.
+                This means we have our own, local XSCOPE route.
+                The grid has its own. That's multiple XTAGs with node ID 0x8000
+                in the system... insane? Probably.
+              -->
+              <Bit direction="0" number="0"/>
+              <Bit direction="0" number="1"/>
+              <Bit direction="0" number="2"/>
+              <Bit direction="0" number="3"/>
+              <Bit direction="0" number="4"/>
+              <Bit direction="0" number="5"/>
+              <Bit direction="0" number="6"/>
+              <Bit direction="0" number="7"/>
+              <Bit direction="0" number="8"/>
+              <Bit direction="0" number="9"/>
+              <Bit direction="0" number="10"/>
+              <Bit direction="0" number="11"/>
+              <Bit direction="0" number="12"/>
+              <Bit direction="0" number="13"/>
+              <Bit direction="0" number="14"/>
+              <Bit direction="1" number="15"/>
+            </Bits>
+            <Links>
+              <!--
+                Direction 1 is XSCOPE, 0 is to the grid but we do not declare
+                the link as it is enabled dynamically.
+                XLD = 1 if on top of grid, XLC = 1 if underneath it
+              -->
+              <Link name="XLD" direction="1"/>
+            </Links>
+          </RoutingTable>
           <Boot>
             <Source Location="SPI:bootFlash"/>
           </Boot>
@@ -60,9 +97,10 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
     <!-- when enabling an off-board link, set XSCOPE to other link here and with jumper on board -->
 
 
-    <!-- XSCOPE -->
-	<Link Encoding="2wire" Delays="8,8" Flags="SOD">
-	  <LinkEndpoint NodeId="0" Link="XLC"/>
+  <!-- XSCOPE -->
+	<Link Encoding="2wire" Delays="8,8" Flags="XSCOPE">
+	  <!-- Use XLD if board connected to grid at top, XLC for bottom. Check jumper! -->
+	  <LinkEndpoint NodeId="0" Link="XLD"/>
 	  <LinkEndpoint RoutingId="0x8000" Chanend="1"/>
 	</Link>
   </Links>

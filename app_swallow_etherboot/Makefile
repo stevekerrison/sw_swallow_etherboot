@@ -20,7 +20,7 @@ USED_MODULES = swallow_comms module_ethernet module_otp_board_info swallow_ether
 ifeq "$(CONFIG)" "Debug"
 XCC_FLAGS = -g -O0
 else
-XCC_FLAGS = -g -O3 -DCONFIG_FULL -report -fxscope -Wno-reinterpret-alignment
+XCC_FLAGS = -g -O3 -DCONFIG_FULL -fxscope -report -Wno-reinterpret-alignment
 endif
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make
