@@ -38,7 +38,7 @@ static void init_arp_cache()
 {
   for (int i = 0; i < ARP_CACHE_SIZE; i += 1)
   {
-    (arp_cache_table[i].ip,unsigned) = 0;
+    (arp_cache_table[i].ip,unsigned[])[0] = 0;
     (arp_cache_table[i].mac,unsigned[])[0] = 0;
     arp_cache_table[i].mac[4] = 0;
     arp_cache_table[i].mac[5] = 0;
