@@ -15,10 +15,10 @@
 #include <print.h>
 #include <platform.h>
 #include <stdlib.h>
+#include <xscope.h>
 #include "otp_board_info.h"
 #include "ethernet.h"
 #include "checksum.h"
-//#include "xscope.h"
 #include "swallow_ethernet.h"
 #include "swallow_comms.h"
 
@@ -41,6 +41,7 @@
 
 // These ports are for accessing the OTP memory
 on ETHERNET_DEFAULT_TILE: otp_ports_t otp_ports = OTP_PORTS_INITIALIZER;
+on ETHERNET_DEFAULT_TILE: out port led = L1_LED;
 
 // Here are the port definitions required by ethernet
 // The intializers are taken from the ethernet_board_support.h header for
@@ -101,6 +102,44 @@ void grid_example(streaming chanend x)
   }
 }
 
+#define SLOW_LINK 0x80063d8e
+#define MODEBITS_JTAG 0x10012
+
+/* Enables XLink and tries to talk to the grid. Triggers a reset if something
+ * goes wrong and we're not attached to JTAG */
+void etherboot_init(void) {
+  unsigned tid = get_local_tile_id(), data, tv, link, jtag, dir,lastdata;
+  timer t;
+  xscope_register(0);
+  xscope_config_io(XSCOPE_IO_BASIC);
+  jtag = getps(0x030b) == MODEBITS_JTAG;
+  /* If vertical ID bits are set, we're NOT on top, so are using link D. */
+  if ((tid >> SWXLB_VPOS) & COUNT_FROM_BITS(SWXLB_VBITS)) {
+    link = XLB_L_LINKD;
+  } else {
+    link = XLB_L_LINKC;
+  }
+  data = SLOW_LINK;
+  // Bring up the link, wait for the other end to do all the setup for us
+  write_sswitch_reg(tid,0x80 + link,data);
+  printstrln("Waiting for grid to bring us up...");
+  lastdata = data;
+  while ((data >> 30) != 3) { //Wait for remote to fully configure us 50wire
+    t :> tv;
+    t when timerafter(tv + XLB_UP_DELAY) :> void;
+    read_sswitch_reg(tid,0x80 + link,data);
+    if ((data >> 27) & 1) { //ERROR!
+      printstrln("Error on the XLink!");
+      if (!jtag) { //Reset!
+        read_sswitch_reg(tid,0x06,data);
+        write_sswitch_reg(tid,0x06,data);
+        //Core reboots here!
+      }
+    }
+  }
+  printstrln("Grid brought us up successfully");
+  led <: 1;
+}
 
 int main()
 {
@@ -112,30 +151,16 @@ int main()
       on ETHERNET_DEFAULT_TILE:
       {
         char mac_address[6] = SWALLOW_MAC;
+        etherboot_init();
         eth_phy_reset(eth_rst);
         smi_init(smi);
         eth_phy_config(1, smi);
-        ethernet_server(mii,
-                        null,
-                        mac_address,
-                        rx, 1,
-                        tx, 1);
-      }
-      on ETHERNET_DEFAULT_TILE : {
         par {
-          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow, swallow_print, swxlb_cfg);
-          //outbound_example(rx_from_swallow);
-          /*{
-            timer t;
-            unsigned tv;
-            t :> tv;
-            t when timerafter(tv + 0x10000000) :> void;
-            startTransactionClient(x,0x80010402,0,0);
-            endTransactionClient(x);
-          }*/
+          ethernet_server(mii, null, mac_address, rx, 1, tx, 1);
+          swallow_ethernet(tx[0], rx[0], tx_into_swallow, rx_from_swallow,
+            swallow_print, swxlb_cfg);
         }
       }
-      //::
     }
 
 	return 0;
