@@ -36,3 +36,4 @@ while True:
     for t in xrange(8):
       pc = struct.unpack('!I',data[i * debug_struct_size + 8 + t * 4:][:4])[0]
       print "  {} : 0x{:08x}".format(t,pc)
+  break
